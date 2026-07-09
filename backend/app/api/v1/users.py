@@ -43,11 +43,13 @@ def register_user(
             detail="Email already registered",
         )
 
+    role_value = user.role if user.role in ["student", "recruiter", "admin"] else "student"
+
     new_user = User(
         full_name=user.full_name,
         email=user.email,
         hashed_password=hash_password(user.password),
-        role="student",
+        role=role_value,
     )
 
     db.add(new_user)

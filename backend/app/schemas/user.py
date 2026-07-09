@@ -5,6 +5,7 @@ class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
     password: str
+    role: str = "student"
 
 
 class UserResponse(BaseModel):
