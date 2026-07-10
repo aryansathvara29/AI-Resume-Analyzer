@@ -8,6 +8,7 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "default_secret_key_fallback_123456789_very_long")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 import bcrypt
 
@@ -24,7 +25,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
-def create_access_token(data: dict, expires_minutes: int = 30):
+def create_access_token(data: dict, expires_minutes: int = None):
+    if expires_minutes is None:
+        expires_minutes = ACCESS_TOKEN_EXPIRE_MINUTES
+
     to_encode = data.copy()
 
     expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
