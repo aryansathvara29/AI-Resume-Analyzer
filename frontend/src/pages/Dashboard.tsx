@@ -97,13 +97,14 @@ function Dashboard() {
   const fetchData = async () => {
     try {
       setErrorMsg("");
-      const userRes = await api.get("/users/me");
+      const [userRes, statsRes, historyRes] = await Promise.all([
+        api.get("/users/me"),
+        api.get("/dashboard/stats"),
+        api.get("/history/resumes"),
+      ]);
+
       setUser(userRes.data);
-
-      const statsRes = await api.get("/dashboard/stats");
       setStats(statsRes.data);
-
-      const historyRes = await api.get("/history/resumes");
       setHistory(historyRes.data.history || []);
 
       if (userRes.data.role === "admin" || userRes.data.role === "recruiter") {
