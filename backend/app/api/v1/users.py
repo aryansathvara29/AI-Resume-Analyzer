@@ -43,7 +43,7 @@ def register_user(
             detail="Email already registered",
         )
 
-    role_value = user.role if user.role in ["student", "recruiter", "admin"] else "student"
+    role_value = user.role if user.role in ["user", "recruiter", "admin"] else "user"
 
     new_user = User(
         full_name=user.full_name,

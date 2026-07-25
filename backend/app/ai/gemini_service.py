@@ -102,7 +102,7 @@ def generate_career_advisor_response(chat_history: list, message: str, resume_te
 
     prompt = f"""
 You are an expert AI Career Coach and Recruitment Advisor.
-Your goal is to guide students in their career roadmap, skill optimization, placement preparation, and resume building.
+Your goal is to guide users in their career roadmap, skill optimization, placement preparation, and resume building.
 
 Candidate Resume Context:
 {resume_text if resume_text else "No resume uploaded yet."}
@@ -110,7 +110,7 @@ Candidate Resume Context:
 Previous Conversation History:
 {history_context}
 
-New Message from Student: {message}
+New Message from User: {message}
 
 Provide a direct, conversational, and highly helpful response. Keep it concise, professional, and actionable. Do NOT repeat previous messages.
 """

@@ -7,7 +7,7 @@ function Login() {
 
   const [isLogin, setIsLogin] = useState(true);
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState("student");
+  const [role, setRole] = useState("user");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -170,17 +170,17 @@ function Login() {
                 </label>
                 <div className="flex gap-4">
                   <label className={`flex-1 flex items-center justify-between p-3.5 rounded-lg border cursor-pointer select-none transition-all ${
-                    role === "student"
+                    role === "user"
                       ? "border-blue-500 bg-blue-500/5 text-white"
                       : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700"
                   }`}>
-                    <span className="text-xs font-bold">Student</span>
+                    <span className="text-xs font-bold">User</span>
                     <input
                       type="radio"
                       name="role"
-                      value="student"
-                      checked={role === "student"}
-                      onChange={() => setRole("student")}
+                      value="user"
+                      checked={role === "user"}
+                      onChange={() => setRole("user")}
                       className="hidden"
                     />
                   </label>

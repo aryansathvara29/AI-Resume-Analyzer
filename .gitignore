@@ -1,7 +1,12 @@
 # Python cache
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *.pyo
+
+# SQLite DB
+*.db
+*.sqlite3
 
 # Virtual Environment
 .venv/
