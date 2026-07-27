@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from sqlalchemy import text
 from app.database.session import engine, Base
 from app.models.user import User
 from app.models.resume import Resume
@@ -9,6 +10,13 @@ from app.models.resume import Resume
 # CREATE TABLES ON STARTUP
 # -----------------------
 Base.metadata.create_all(bind=engine)
+
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'email';"))
+        conn.commit()
+except Exception as e:
+    print(f"[INFO] Migration check info: {e}")
 
 from app.api.v1.users import router as user_router
 from app.api.v1.resumes import router as resume_router
