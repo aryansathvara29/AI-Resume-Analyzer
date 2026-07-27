@@ -15,6 +15,7 @@ venv/
 # Environment Variables
 .env
 backend/.env
+frontend/.env
 
 # Uploaded resumes
 backend/uploads/

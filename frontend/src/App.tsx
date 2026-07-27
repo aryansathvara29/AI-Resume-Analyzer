@@ -1,9 +1,14 @@
+import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "./pages/login";
 import Dashboard from "./pages/Dashboard";
 
 function App() {
+  useEffect(() => {
+    document.title = "AI Resume Analyzer";
+  }, []);
+
   return (
     <Routes>
       {/* Redirect Root */}

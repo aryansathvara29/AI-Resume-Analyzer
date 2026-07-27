@@ -39,3 +39,4 @@ websockets==16.0
 google-generativeai
 pdfplumber
 python-docx
+google-auth

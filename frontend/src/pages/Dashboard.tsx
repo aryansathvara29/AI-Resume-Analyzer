@@ -151,7 +151,16 @@ function Dashboard() {
       setActiveTab("upload"); // switch to analysis view
     } catch (err: any) {
       console.error("Error loading resume:", err);
-      setErrorMsg("Failed to load details for this resume.");
+      const foundInHistory = history.find((item: any) => item.id === resumeId) || recruiterResumes.find((c: any) => c.id === resumeId);
+      if (foundInHistory) {
+        setSelectedResume(foundInHistory);
+        setAiAnalysis("");
+        setJobMatchResult("");
+        setActiveTab("upload");
+      } else {
+        let detailMsg = err.response?.data?.detail;
+        setErrorMsg(detailMsg || "Failed to load details for this resume.");
+      }
     } finally {
       setUploading(false);
     }

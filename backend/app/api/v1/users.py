@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -25,71 +27,65 @@ router = APIRouter(
 )
 
 
-@router.post(
-    "/register",
-    response_model=UserResponse,
-)
+@router.post("/register", response_model=Token)
 def register_user(
-    user: UserCreate,
+    body: UserCreate,
     db: Session = Depends(get_db),
 ):
-    existing_user = db.query(User).filter(
-        User.email == user.email
-    ).first()
+    email = body.email.strip().lower()
 
+    existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
         raise HTTPException(
             status_code=400,
-            detail="Email already registered",
+            detail="Email already registered. Please login instead.",
         )
 
-    role_value = user.role if user.role in ["user", "recruiter", "admin"] else "user"
+    role_value = body.role if body.role in ["user", "recruiter", "admin"] else "user"
 
     new_user = User(
-        full_name=user.full_name,
-        email=user.email,
-        hashed_password=hash_password(user.password),
+        full_name=body.full_name,
+        email=email,
+        hashed_password=hash_password(body.password),
         role=role_value,
+        auth_provider="email",
     )
 
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    return new_user
+    access_token = create_access_token(
+        data={
+            "sub": new_user.email,
+            "role": new_user.role,
+        }
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
 
 
-@router.post(
-    "/login",
-    response_model=Token,
-)
+@router.post("/login", response_model=Token)
 def login_user(
-    user: UserLogin,
+    body: UserLogin,
     db: Session = Depends(get_db),
 ):
-    db_user = db.query(User).filter(
-        User.email == user.email
-    ).first()
+    email = body.email.strip().lower()
 
-    if not db_user:
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.hashed_password or not verify_password(body.password, user.hashed_password):
         raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password",
-        )
-
-    if not verify_password(
-        user.password,
-        db_user.hashed_password,
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password",
+            status_code=400,
+            detail="Invalid email or password.",
         )
 
     access_token = create_access_token(
         data={
-            "sub": db_user.email,
-            "role": db_user.role,
+            "sub": user.email,
+            "role": user.role,
         }
     )
 

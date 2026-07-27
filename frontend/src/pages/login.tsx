@@ -6,63 +6,85 @@ function Login() {
   const navigate = useNavigate();
 
   const [isLogin, setIsLogin] = useState(true);
+
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("user");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  const validateGmail = (emailStr: string) => {
+    const cleanEmail = emailStr.trim().toLowerCase();
+    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+    return gmailRegex.test(cleanEmail);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!validateGmail(cleanEmail)) {
+      setErrorMsg("Only valid @gmail.com email addresses are allowed.");
+      return;
+    }
+
+    if (!isLogin && !fullName.trim()) {
+      setErrorMsg("Please enter your full name.");
+      return;
+    }
+
+    if (!password) {
+      setErrorMsg("Please enter your password.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (isLogin) {
         // Handle Login
         const response = await api.post("/users/login", {
-          email,
+          email: cleanEmail,
           password,
         });
 
         localStorage.setItem("token", response.data.access_token);
         setSuccessMsg("Welcome back! Redirecting...");
-        
+
         setTimeout(() => {
           navigate("/dashboard");
         }, 1000);
       } else {
         // Handle Registration
-        await api.post("/users/register", {
-          full_name: fullName,
-          email,
+        const response = await api.post("/users/register", {
+          full_name: fullName.trim(),
+          email: cleanEmail,
           password,
           role,
         });
 
-        setSuccessMsg("Registration successful! Logging you in...");
+        localStorage.setItem("token", response.data.access_token);
+        setSuccessMsg("Account created successfully! Redirecting...");
 
-        // Auto Login
-        const loginResponse = await api.post("/users/login", {
-          email,
-          password,
-        });
-
-        localStorage.setItem("token", loginResponse.data.access_token);
-        
         setTimeout(() => {
           navigate("/dashboard");
         }, 1000);
       }
     } catch (error: any) {
       console.error("Auth Error:", error);
+      let detailMsg = error.response?.data?.detail;
+      if (Array.isArray(detailMsg)) {
+        detailMsg = detailMsg.map((err: any) => err.msg).join(", ");
+      }
       setErrorMsg(
-        error.response?.data?.detail ||
+        detailMsg ||
         error.message ||
-        "Authentication failed. Please try again."
+        "Authentication failed. Please check your credentials and try again."
       );
     } finally {
       setLoading(false);
@@ -91,12 +113,14 @@ function Login() {
             AI Resume Analyzer
           </h1>
           <p className="mt-2 text-center text-sm text-slate-400">
-            {isLogin ? "Welcome back! Enter credentials to access." : "Sign up to analyze your resumes and match job profiles."}
+            {isLogin
+              ? "Welcome back! Enter your valid Gmail credentials to sign in."
+              : "Sign up with a valid Gmail address to analyze your resumes."}
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="mt-8 flex rounded-lg bg-slate-950 p-1 border border-slate-800/80">
+        <div className="mt-6 flex rounded-lg bg-slate-950 p-1 border border-slate-800/80">
           <button
             onClick={() => {
               setIsLogin(true);
@@ -206,16 +230,17 @@ function Login() {
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Email Address
+              Gmail Address (@gmail.com)
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="john@example.com"
+              placeholder="example@gmail.com"
               className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
               required
             />
+            <p className="mt-1 text-[11px] text-slate-500">Must be a valid @gmail.com address</p>
           </div>
 
           <div>
