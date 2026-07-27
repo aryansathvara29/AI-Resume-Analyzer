@@ -9,7 +9,9 @@ const api = axios.create({
   baseURL:
     import.meta.env.VITE_API_BASE_URL ||
     import.meta.env.VITE_API_URL ||
-    (isLocal ? "http://127.0.0.1:8000" : ""),
+    (isLocal
+      ? "http://127.0.0.1:8000"
+      : "https://ai-resume-analyzer-backend-xb4l.onrender.com"),
   headers: {
     "Content-Type": "application/json",
   },
