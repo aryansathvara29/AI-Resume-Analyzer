@@ -97,25 +97,34 @@ function Dashboard() {
   const fetchData = async () => {
     try {
       setErrorMsg("");
-      const [userRes, statsRes, historyRes] = await Promise.all([
-        api.get("/users/me"),
-        api.get("/dashboard/stats"),
-        api.get("/history/resumes"),
-      ]);
-
+      const userRes = await api.get("/users/me");
       setUser(userRes.data);
-      setStats(statsRes.data);
-      setHistory(historyRes.data.history || []);
+
+      try {
+        const [statsRes, historyRes] = await Promise.all([
+          api.get("/dashboard/stats"),
+          api.get("/history/resumes"),
+        ]);
+        setStats(statsRes.data);
+        setHistory(historyRes.data.history || []);
+      } catch (statsErr) {
+        console.error("Error fetching stats/history:", statsErr);
+      }
 
       if (userRes.data.role === "admin" || userRes.data.role === "recruiter") {
-        setRecruiterLoading(true);
-        const recruiterRes = await api.get("/resumes/admin/all");
-        setRecruiterResumes(recruiterRes.data || []);
-        setRecruiterLoading(false);
+        try {
+          setRecruiterLoading(true);
+          const recruiterRes = await api.get("/resumes/admin/all");
+          setRecruiterResumes(recruiterRes.data || []);
+        } catch (recErr) {
+          console.error("Error fetching recruiter resumes:", recErr);
+        } finally {
+          setRecruiterLoading(false);
+        }
       }
     } catch (err: any) {
       console.error("Error fetching dashboard data:", err);
-      if (err.response?.status === 401) {
+      if (err.response?.status === 401 || err.response?.status === 404 || err.response?.status === 403) {
         localStorage.removeItem("token");
         navigate("/login");
       } else {
