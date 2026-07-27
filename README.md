@@ -1,4 +1,4 @@
-# 🤖 AI Resume Analyzer & Career Coach
+# 🤖 AI Resume Analyzer & Career Guidance
 
 An intelligent, full-stack web application that leverages GenAI and Natural Language Processing to analyze resumes, score them against Applicant Tracking Systems (ATS), provide comparative job matching, generate personalized career roadmaps, conduct mock technical interviews, and act as an AI career advisor.
 
