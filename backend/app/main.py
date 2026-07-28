@@ -5,6 +5,7 @@ from sqlalchemy import text
 from app.database.session import engine, Base
 from app.models.user import User
 from app.models.resume import Resume
+from app.models.skill_verification import SkillVerification
 
 # -----------------------
 # CREATE TABLES ON STARTUP
@@ -55,6 +56,7 @@ from app.api.v1.ai import router as ai_router
 from app.api.v1.job_match import router as job_match_router
 from app.api.v1.history import router as history_router
 from app.api.v1.dashboard import router as dashboard_router
+from app.api.v1.skills import router as skills_router
 
 app = FastAPI(
     title="AI Resume Analyzer API",
@@ -86,6 +88,7 @@ app.include_router(ai_router)
 app.include_router(job_match_router)
 app.include_router(history_router)
 app.include_router(dashboard_router)
+app.include_router(skills_router, prefix="/api/v1/skills", tags=["skills"])
 
 # -----------------------
 # ROOT ENDPOINT

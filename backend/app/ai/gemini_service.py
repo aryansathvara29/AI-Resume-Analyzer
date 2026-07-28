@@ -183,3 +183,65 @@ Step 4: Target Companies & Job Roles:
 """
     response = model.generate_content(prompt)
     return response.text
+
+
+# -----------------------------
+# Skill Test MCQ Generator
+# -----------------------------
+def generate_skill_mcq_test(skill_name: str):
+    prompt = f"""
+You are an expert Technical Interviewer.
+Generate 10 multiple-choice questions (MCQs) to evaluate a candidate's proficiency in '{skill_name}'.
+The questions should cover practical, interview-level topics.
+
+Return ONLY a valid JSON array of 10 objects without any codeblocks or commentary.
+Format:
+[
+  {{
+    "id": 1,
+    "question": "Question text here?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  }}
+]
+"""
+    response = model.generate_content(prompt)
+    text = response.text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
+
+
+# -----------------------------
+# Skill Learning Resource Suggester
+# -----------------------------
+def generate_learning_resources(skill_name: str):
+    prompt = f"""
+You are an AI Tech Educator.
+Suggest 3 best free learning resources (e.g. Official Documentation, FreeCodeCamp, YouTube Playlist) for learning '{skill_name}'.
+
+Return ONLY a valid JSON array of 3 objects without any codeblocks or commentary.
+Format:
+[
+  {{
+    "title": "Resource Title",
+    "type": "Documentation",
+    "url": "https://...",
+    "difficulty": "Beginner / Intermediate / Advanced",
+    "estimated_time": "8 Hours"
+  }}
+]
+"""
+    response = model.generate_content(prompt)
+    text = response.text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()

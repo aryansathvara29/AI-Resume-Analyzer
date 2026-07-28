@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { CITIES_DATA, type CityItem } from "../utils/citiesData";
 import { COUNTRY_CODES, type CountryCodeItem } from "../utils/countryCodes";
+import { SkillVerificationModal } from "../components/SkillVerificationModal";
 
 interface User {
   id: number;
@@ -129,8 +130,27 @@ function Dashboard() {
     total_resume_uploads: number;
   } | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
-  const [profileSubTab, setProfileSubTab] = useState<"personal" | "education" | "professional" | "skills" | "social" | "resume" | "security">("personal");
+  const [profileSubTab, setProfileSubTab] = useState<"personal" | "education" | "professional" | "skills" | "social" | "resume" | "skill_verification" | "security">("personal");
   const [profileSuccessMsg, setProfileSuccessMsg] = useState("");
+
+  // Skill Verification States
+  const [skillVerifications, setSkillVerifications] = useState<{ [skill: string]: any }>({});
+  const [selectedSkillToVerify, setSelectedSkillToVerify] = useState<string | null>(null);
+
+  const fetchSkillVerifications = async () => {
+    try {
+      const res = await api.get("/skills/verifications");
+      const map: { [skill: string]: any } = {};
+      if (Array.isArray(res.data)) {
+        res.data.forEach((v: any) => {
+          map[v.skill_name.toLowerCase()] = v;
+        });
+      }
+      setSkillVerifications(map);
+    } catch (err) {
+      console.error("Error fetching skill verifications:", err);
+    }
+  };
 
   const [passwordForm, setPasswordForm] = useState({
     current_password: "",
@@ -167,6 +187,7 @@ function Dashboard() {
         setStats(statsRes.data);
         setHistory(historyRes.data.history || []);
         setProfileStats(profileStatsRes.data);
+        fetchSkillVerifications();
       } catch (statsErr) {
         console.error("Error fetching stats/history:", statsErr);
       }
@@ -1248,12 +1269,57 @@ function Dashboard() {
                           Identified Skills ({currentSkillsAndSuggestions.skills.length})
                         </h4>
                         {currentSkillsAndSuggestions.skills.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {currentSkillsAndSuggestions.skills.map((skill) => (
-                              <span key={skill} className="text-xs px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 capitalize font-medium">
-                                {skill}
-                              </span>
-                            ))}
+                          <div className="space-y-2.5">
+                            {currentSkillsAndSuggestions.skills.map((skill) => {
+                              const sVer = skillVerifications[skill.toLowerCase()];
+                              const isCert = sVer?.status === "verified_certificate";
+                              const isTest = sVer?.status === "verified_ai_test";
+                              const isFailed = sVer?.status === "learning_recommended";
+
+                              return (
+                                <div
+                                  key={skill}
+                                  className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-all"
+                                >
+                                  <span className="text-xs font-bold text-white capitalize">{skill}</span>
+
+                                  {isCert && (
+                                    <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                      <span>Verified by Certificate</span> <span>✅</span>
+                                    </span>
+                                  )}
+
+                                  {isTest && (
+                                    <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                      <span>Verified by AI Test ({sVer.score}/10)</span> <span>✅</span>
+                                    </span>
+                                  )}
+
+                                  {isFailed && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-extrabold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                        <span>Learning Recommended</span> <span>⚠️</span>
+                                      </span>
+                                      <button
+                                        onClick={() => setSelectedSkillToVerify(skill)}
+                                        className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+                                      >
+                                        Verify Skill
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {!isCert && !isTest && !isFailed && (
+                                    <button
+                                      onClick={() => setSelectedSkillToVerify(skill)}
+                                      className="text-[10px] font-bold px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-md shadow-blue-500/20 flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <span>🛡️</span> Verify Skill
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
                           <p className="text-xs text-slate-500 italic">No indexed skills found in the parsed text.</p>
@@ -2113,6 +2179,18 @@ function Dashboard() {
                 </button>
 
                 <button
+                  onClick={() => setProfileSubTab("skill_verification")}
+                  className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
+                    profileSubTab === "skill_verification"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 font-extrabold"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                  }`}
+                >
+                  <span className="w-6 h-6 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-xs">🛡️</span>
+                  Skill Verification
+                </button>
+
+                <button
                   onClick={() => setProfileSubTab("security")}
                   className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
                     profileSubTab === "security"
@@ -2754,6 +2832,101 @@ function Dashboard() {
                   </div>
                 )}
 
+                {/* 🛡️ Skill Verification Panel */}
+                {profileSubTab === "skill_verification" && (
+                  <div className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 animate-fade-in">
+                    <div className="border-b border-slate-800/80 pb-4">
+                      <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                        <span className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-sm">🛡️</span>
+                        Skill Verification Status
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Verify your detected technical skills via Certificate Upload or 10-Question Gemini AI Test
+                      </p>
+                    </div>
+
+                    {currentSkillsAndSuggestions.skills.length > 0 || Object.keys(skillVerifications).length > 0 ? (
+                      <div className="space-y-3">
+                        {Array.from(
+                          new Set([
+                            ...currentSkillsAndSuggestions.skills,
+                            ...Object.values(skillVerifications).map((v: any) => v.skill_name),
+                          ])
+                        ).map((skill) => {
+                          const sVer = skillVerifications[skill.toLowerCase()];
+                          const isCert = sVer?.status === "verified_certificate";
+                          const isTest = sVer?.status === "verified_ai_test";
+                          const isFailed = sVer?.status === "learning_recommended";
+
+                          return (
+                            <div
+                              key={skill}
+                              className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-slate-700 transition-all"
+                            >
+                              <div>
+                                <h4 className="text-sm font-bold text-white capitalize flex items-center gap-2">
+                                  {skill}
+                                </h4>
+                                {isCert && (
+                                  <p className="text-xs text-emerald-400 font-semibold mt-1 flex items-center gap-1">
+                                    <span>Verified by Certificate</span> <span>✅</span>
+                                  </p>
+                                )}
+                                {isTest && (
+                                  <p className="text-xs text-emerald-400 font-semibold mt-1 flex items-center gap-1">
+                                    <span>Verified by AI Test ({sVer.score}/10)</span> <span>✅</span>
+                                  </p>
+                                )}
+                                {isFailed && (
+                                  <p className="text-xs text-rose-400 font-semibold mt-1 flex items-center gap-1">
+                                    <span>Learning Recommended</span> <span>⚠️</span>
+                                  </p>
+                                )}
+                                {!isCert && !isTest && !isFailed && (
+                                  <p className="text-xs text-slate-400 font-medium mt-1">Not Verified</p>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-3 self-end md:self-auto">
+                                {isCert && (
+                                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    Verified Certificate
+                                  </span>
+                                )}
+                                {isTest && (
+                                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    Verified AI Test
+                                  </span>
+                                )}
+                                {isFailed && (
+                                  <button
+                                    onClick={() => setSelectedSkillToVerify(skill)}
+                                    className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+                                  >
+                                    Re-Take Test / Verify
+                                  </button>
+                                )}
+                                {!isCert && !isTest && !isFailed && (
+                                  <button
+                                    onClick={() => setSelectedSkillToVerify(skill)}
+                                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white transition-all shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer"
+                                  >
+                                    <span>🛡️</span> Verify Skill
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-12 text-center text-slate-500 space-y-2">
+                        <p className="text-xs italic">Upload a resume to automatically detect and verify your skills.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* ⚙️ 7. Security Panel */}
                 {profileSubTab === "security" && (
                   <form onSubmit={handleChangePassword} className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 animate-fade-in">
@@ -2827,6 +3000,17 @@ function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* SKILL VERIFICATION MODAL */}
+      {selectedSkillToVerify && (
+        <SkillVerificationModal
+          skillName={selectedSkillToVerify}
+          onClose={() => setSelectedSkillToVerify(null)}
+          onVerificationComplete={() => {
+            fetchSkillVerifications();
+          }}
+        />
+      )}
     </div>
   );
 }
