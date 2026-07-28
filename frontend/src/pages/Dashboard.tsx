@@ -2053,7 +2053,7 @@ function Dashboard() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Email Address (Read Only)</label>
+                        <label className="block text-xs font-semibold text-slate-300 mb-2">Email Address</label>
                         <input
                           type="email"
                           value={user?.email || ""}
