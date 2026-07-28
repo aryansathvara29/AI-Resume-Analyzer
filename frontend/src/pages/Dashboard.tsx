@@ -2147,10 +2147,11 @@ function Dashboard() {
                       </div>
 
                       <div className="relative">
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Current City (Auto-Suggests State & Country)</label>
+                        <label className="block text-xs font-semibold text-slate-300 mb-2">Current City</label>
                         <input
                           type="text"
                           name="city"
+                          autoComplete="off"
                           value={profileForm.city || ""}
                           onChange={(e) => handleCityChange(e.target.value)}
                           onFocus={() => {
@@ -2162,7 +2163,7 @@ function Dashboard() {
                               setShowCityDropdown(matches.length > 0);
                             }
                           }}
-                          placeholder="Type city (e.g. Mehsana, Ahmedabad, Mumbai)..."
+                          placeholder="Enter your city"
                           className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                         />
 

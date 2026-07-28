@@ -5,8 +5,15 @@ export interface CityItem {
 }
 
 export const CITIES_DATA: CityItem[] = [
-  // Gujarat
+  // Gujarat - Complete Cities & Towns
+  { city: "Visnagar", state: "Gujarat", country: "India" },
   { city: "Mehsana", state: "Gujarat", country: "India" },
+  { city: "Unjha", state: "Gujarat", country: "India" },
+  { city: "Kadi", state: "Gujarat", country: "India" },
+  { city: "Kalol", state: "Gujarat", country: "India" },
+  { city: "Siddhpur", state: "Gujarat", country: "India" },
+  { city: "Vadnagar", state: "Gujarat", country: "India" },
+  { city: "Vijapur", state: "Gujarat", country: "India" },
   { city: "Ahmedabad", state: "Gujarat", country: "India" },
   { city: "Surat", state: "Gujarat", country: "India" },
   { city: "Vadodara", state: "Gujarat", country: "India" },
@@ -23,11 +30,35 @@ export const CITIES_DATA: CityItem[] = [
   { city: "Bhuj", state: "Gujarat", country: "India" },
   { city: "Patan", state: "Gujarat", country: "India" },
   { city: "Palanpur", state: "Gujarat", country: "India" },
+  { city: "Deesa", state: "Gujarat", country: "India" },
+  { city: "Himatnagar", state: "Gujarat", country: "India" },
+  { city: "Modasa", state: "Gujarat", country: "India" },
   { city: "Porbandar", state: "Gujarat", country: "India" },
   { city: "Vapi", state: "Gujarat", country: "India" },
   { city: "Godhra", state: "Gujarat", country: "India" },
   { city: "Amreli", state: "Gujarat", country: "India" },
   { city: "Botad", state: "Gujarat", country: "India" },
+  { city: "Veraval", state: "Gujarat", country: "India" },
+  { city: "Gondal", state: "Gujarat", country: "India" },
+  { city: "Jetpur", state: "Gujarat", country: "India" },
+  { city: "Dwarka", state: "Gujarat", country: "India" },
+  { city: "Somnath", state: "Gujarat", country: "India" },
+  { city: "Dahod", state: "Gujarat", country: "India" },
+  { city: "Nadiad", state: "Gujarat", country: "India" },
+  { city: "Ankleshwar", state: "Gujarat", country: "India" },
+  { city: "Sanand", state: "Gujarat", country: "India" },
+  { city: "Gandhidham", state: "Gujarat", country: "India" },
+  { city: "Mundra", state: "Gujarat", country: "India" },
+  { city: "Kapadvanj", state: "Gujarat", country: "India" },
+  { city: "Lunawada", state: "Gujarat", country: "India" },
+  { city: "Halol", state: "Gujarat", country: "India" },
+  { city: "Vyara", state: "Gujarat", country: "India" },
+  { city: "Songadh", state: "Gujarat", country: "India" },
+  { city: "Chhota Udepur", state: "Gujarat", country: "India" },
+  { city: "Keshod", state: "Gujarat", country: "India" },
+  { city: "Mangrol", state: "Gujarat", country: "India" },
+  { city: "Una", state: "Gujarat", country: "India" },
+  { city: "Bardoli", state: "Gujarat", country: "India" },
 
   // Maharashtra
   { city: "Mumbai", state: "Maharashtra", country: "India" },
@@ -91,7 +122,6 @@ export const CITIES_DATA: CityItem[] = [
   { city: "Coimbatore", state: "Tamil Nadu", country: "India" },
   { city: "Madurai", state: "Tamil Nadu", country: "India" },
   { city: "Tiruchirappalli", state: "Tamil Nadu", country: "India" },
-  { city: "Salem", state: "Tamil Nadu", country: "India" },
 
   // West Bengal
   { city: "Kolkata", state: "West Bengal", country: "India" },
@@ -107,19 +137,15 @@ export const CITIES_DATA: CityItem[] = [
   // Kerala
   { city: "Kochi", state: "Kerala", country: "India" },
   { city: "Thiruvananthapuram", state: "Kerala", country: "India" },
-  { city: "Kozhikode", state: "Kerala", country: "India" },
 
   // Bihar, Jharkhand, Odisha
   { city: "Patna", state: "Bihar", country: "India" },
-  { city: "Gaya", state: "Bihar", country: "India" },
   { city: "Ranchi", state: "Jharkhand", country: "India" },
   { city: "Jamshedpur", state: "Jharkhand", country: "India" },
   { city: "Bhubaneswar", state: "Odisha", country: "India" },
-  { city: "Cuttack", state: "Odisha", country: "India" },
 
   // Uttarakhand, Himachal, Jammu
   { city: "Dehradun", state: "Uttarakhand", country: "India" },
-  { city: "Haridwar", state: "Uttarakhand", country: "India" },
   { city: "Shimla", state: "Himachal Pradesh", country: "India" },
   { city: "Jammu", state: "Jammu and Kashmir", country: "India" },
   { city: "Srinagar", state: "Jammu and Kashmir", country: "India" },
