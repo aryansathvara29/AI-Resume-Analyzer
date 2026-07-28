@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { CITIES_DATA, type CityItem } from "../utils/citiesData";
 
 interface User {
   id: number;
@@ -210,6 +211,45 @@ function Dashboard() {
   const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfileForm((prev: any) => ({ ...prev, [name]: value }));
+  };
+
+  // City Autocomplete States & Handlers
+  const [citySuggestions, setCitySuggestions] = useState<CityItem[]>([]);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+
+  const handleCityChange = (val: string) => {
+    setProfileForm((prev: any) => {
+      const updated = { ...prev, city: val };
+      const exactMatch = CITIES_DATA.find(
+        (c) => c.city.toLowerCase() === val.trim().toLowerCase()
+      );
+      if (exactMatch) {
+        updated.state = exactMatch.state;
+        updated.country = exactMatch.country;
+      }
+      return updated;
+    });
+
+    if (val.trim().length >= 1) {
+      const matches = CITIES_DATA.filter((c) =>
+        c.city.toLowerCase().includes(val.trim().toLowerCase())
+      ).slice(0, 8);
+      setCitySuggestions(matches);
+      setShowCityDropdown(matches.length > 0);
+    } else {
+      setCitySuggestions([]);
+      setShowCityDropdown(false);
+    }
+  };
+
+  const handleSelectCitySuggestion = (item: CityItem) => {
+    setProfileForm((prev: any) => ({
+      ...prev,
+      city: item.city,
+      state: item.state,
+      country: item.country,
+    }));
+    setShowCityDropdown(false);
   };
 
   const handleSaveProfile = async (e?: React.FormEvent) => {
@@ -2106,16 +2146,47 @@ function Dashboard() {
                         </select>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Current City</label>
+                      <div className="relative">
+                        <label className="block text-xs font-semibold text-slate-300 mb-2">Current City (Auto-Suggests State & Country)</label>
                         <input
                           type="text"
                           name="city"
                           value={profileForm.city || ""}
-                          onChange={handleProfileInputChange}
-                          placeholder="e.g. Ahmedabad / Mumbai"
+                          onChange={(e) => handleCityChange(e.target.value)}
+                          onFocus={() => {
+                            if (profileForm.city && profileForm.city.trim().length >= 1) {
+                              const matches = CITIES_DATA.filter((c) =>
+                                c.city.toLowerCase().includes(profileForm.city.trim().toLowerCase())
+                              ).slice(0, 8);
+                              setCitySuggestions(matches);
+                              setShowCityDropdown(matches.length > 0);
+                            }
+                          }}
+                          placeholder="Type city (e.g. Mehsana, Ahmedabad, Mumbai)..."
                           className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                         />
+
+                        {/* Floating City Suggestions Dropdown */}
+                        {showCityDropdown && citySuggestions.length > 0 && (
+                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-slate-900/95 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-2xl max-h-56 overflow-y-auto divide-y divide-slate-800/60 animate-fade-in">
+                            {citySuggestions.map((item, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleSelectCitySuggestion(item)}
+                                className="w-full px-4 py-2.5 text-left text-xs text-slate-300 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-between group cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm">📍</span>
+                                  <span className="font-bold text-white group-hover:text-white">{item.city}</span>
+                                </div>
+                                <span className="text-[11px] font-medium text-slate-400 group-hover:text-blue-100">
+                                  {item.state}, {item.country}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div>
