@@ -1877,20 +1877,89 @@ function Dashboard() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 font-medium mt-1">{user?.email}</p>
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500 font-semibold">
+                  <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-slate-500 font-semibold">
                     {profileForm.current_role && (
                       <span className="bg-slate-950/60 px-2.5 py-0.5 rounded-md border border-slate-800 text-blue-400">
                         {profileForm.current_role}
                       </span>
                     )}
                     {profileForm.city && (
-                      <span className="flex items-center gap-1 text-slate-400">
+                      <span className="flex items-center gap-1 text-slate-400 bg-slate-950/40 px-2.5 py-0.5 rounded-md border border-slate-800/80">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 text-slate-500">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                         </svg>
                         {profileForm.city}{profileForm.country ? `, ${profileForm.country}` : ""}
                       </span>
+                    )}
+
+                    {/* GitHub Chip */}
+                    {profileForm.github_url && (
+                      <a
+                        href={profileForm.github_url.startsWith("http") ? profileForm.github_url : `https://${profileForm.github_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-950/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-all group"
+                      >
+                        <svg className="w-3.5 h-3.5 fill-current text-slate-400 group-hover:text-white" viewBox="0 0 24 24">
+                          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                        </svg>
+                        <span>GitHub</span>
+                      </a>
+                    )}
+
+                    {/* LinkedIn Chip */}
+                    {profileForm.linkedin_url && (
+                      <a
+                        href={profileForm.linkedin_url.startsWith("http") ? profileForm.linkedin_url : `https://${profileForm.linkedin_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-blue-950/40 hover:bg-blue-900/60 border border-blue-800/60 text-blue-300 hover:text-white transition-all group"
+                      >
+                        <svg className="w-3.5 h-3.5 fill-current text-blue-400 group-hover:text-white" viewBox="0 0 24 24">
+                          <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.75a1.48 1.48 0 1 0 0 2.96 1.48 1.48 0 0 0 0-2.96z"/>
+                        </svg>
+                        <span>LinkedIn</span>
+                      </a>
+                    )}
+
+                    {/* Portfolio Chip */}
+                    {profileForm.portfolio_url && (
+                      <a
+                        href={profileForm.portfolio_url.startsWith("http") ? profileForm.portfolio_url : `https://${profileForm.portfolio_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-violet-950/40 hover:bg-violet-900/60 border border-violet-800/60 text-violet-300 hover:text-white transition-all group"
+                      >
+                        <span className="text-xs">🌐</span>
+                        <span>Portfolio</span>
+                      </a>
+                    )}
+
+                    {/* LeetCode Chip */}
+                    {profileForm.leetcode_url && (
+                      <a
+                        href={profileForm.leetcode_url.startsWith("http") ? profileForm.leetcode_url : `https://${profileForm.leetcode_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/60 text-amber-300 hover:text-white transition-all group"
+                      >
+                        <span className="text-xs">🧩</span>
+                        <span>LeetCode</span>
+                      </a>
+                    )}
+
+                    {/* HackerRank Chip */}
+                    {profileForm.hackerrank_url && (
+                      <a
+                        href={profileForm.hackerrank_url.startsWith("http") ? profileForm.hackerrank_url : `https://${profileForm.hackerrank_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-800/60 text-emerald-300 hover:text-white transition-all group"
+                      >
+                        <span className="text-xs">🏆</span>
+                        <span>HackerRank</span>
+                      </a>
                     )}
                   </div>
                 </div>
