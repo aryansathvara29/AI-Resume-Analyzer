@@ -260,36 +260,43 @@ function Dashboard() {
 
   useEffect(() => {
     if (profileForm.phone) {
-      const parts = profileForm.phone.trim().split(" ");
-      if (parts.length > 1 && parts[0].startsWith("+")) {
-        setCountryCode(parts[0]);
+      const match = profileForm.phone.trim().match(/^(\+\d+)/);
+      if (match && match[1]) {
+        const found = COUNTRY_CODES.find((c) => c.code === match[1]);
+        if (found) {
+          setCountryCode(found.code);
+        } else {
+          setCountryCode(match[1]);
+        }
       }
     }
   }, [profileForm.phone]);
 
   const getPhoneNumberOnly = () => {
     if (!profileForm.phone) return "";
-    const parts = profileForm.phone.trim().split(" ");
-    if (parts.length > 1 && parts[0].startsWith("+")) {
-      return parts.slice(1).join("");
+    let str = profileForm.phone.trim();
+    if (str.startsWith(countryCode)) {
+      str = str.slice(countryCode.length);
+    } else if (str.startsWith("+")) {
+      str = str.replace(/^\+\d+\s*/, "");
     }
-    return profileForm.phone;
+    return str.replace(/\D/g, "");
   };
 
   const handlePhoneNumberChange = (num: string) => {
-    const cleanNum = num.replace(/\D/g, "");
+    const cleanDigits = num.replace(/\D/g, "");
     setProfileForm((prev: any) => ({
       ...prev,
-      phone: `${countryCode} ${cleanNum}`.trim(),
+      phone: cleanDigits ? `${countryCode} ${cleanDigits}` : "",
     }));
   };
 
   const handleSelectCountryCode = (item: CountryCodeItem) => {
     setCountryCode(item.code);
-    const currentNum = getPhoneNumberOnly();
+    const currentDigits = getPhoneNumberOnly();
     setProfileForm((prev: any) => ({
       ...prev,
-      phone: `${item.code} ${currentNum}`.trim(),
+      phone: currentDigits ? `${item.code} ${currentDigits}` : "",
     }));
     setShowCodeDropdown(false);
   };
