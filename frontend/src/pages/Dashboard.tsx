@@ -2064,12 +2064,7 @@ function Dashboard() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
-                          <span>Mobile Number</span>
-                          <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-950/90 border border-slate-800/90 px-2 py-0.5 rounded-md">
-                            {getMaxDigitsForCurrentCountry()} Digits Max
-                          </span>
-                        </label>
+                        <label className="block text-xs font-semibold text-slate-300 mb-2">Mobile Number</label>
                         <div className="flex items-center gap-2">
                           {/* Country Code Dropdown Selector */}
                           <div className="relative">
