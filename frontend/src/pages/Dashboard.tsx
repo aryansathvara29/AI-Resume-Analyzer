@@ -2722,15 +2722,12 @@ function Dashboard() {
                 {/* 📄 6. Resume Analytics Panel */}
                 {profileSubTab === "resume" && (
                   <div className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 animate-fade-in">
-                    <div className="border-b border-slate-800/80 pb-4 flex items-center justify-between">
-                      <div>
-                        <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
-                          <span className="w-8 h-8 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-sm">📄</span>
-                          Resume Analytics Summary (Read Only)
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-1">Automatic sync of your latest analyzed resume metrics</p>
-                      </div>
-                      <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700">Read Only</span>
+                    <div className="border-b border-slate-800/80 pb-4">
+                      <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                        <span className="w-8 h-8 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-sm">📄</span>
+                        Resume Analytics Summary
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-1">Automatic sync of your latest analyzed resume metrics</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
