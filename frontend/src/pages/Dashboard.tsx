@@ -1765,52 +1765,89 @@ function Dashboard() {
 
         {/* 9. USER PROFILE & SETTINGS TAB */}
         {activeTab === "profile" && (
-          <div className="space-y-8 max-w-5xl mx-auto pb-16 animate-fade-in">
+          <div className="space-y-8 max-w-5xl mx-auto pb-20 animate-fade-in">
+            {/* Top Navigation Quick Bar */}
+            <div className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-xl border border-slate-800/80 p-2.5 rounded-2xl flex items-center gap-2 overflow-x-auto shadow-2xl shadow-black/50">
+              <a href="#profile-personal" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800/70 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <span>👤</span> Personal
+              </a>
+              <a href="#profile-education" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800/70 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <span>🎓</span> Education
+              </a>
+              <a href="#profile-professional" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800/70 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <span>💼</span> Professional
+              </a>
+              <a href="#profile-skills" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800/70 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <span>🛠</span> Skills
+              </a>
+              <a href="#profile-social" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800/70 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <span>🌐</span> Social Links
+              </a>
+              <a href="#profile-resume" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800/70 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <span>📄</span> Resume Stats
+              </a>
+              <a href="#profile-security" className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800/70 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <span>⚙️</span> Security
+              </a>
+            </div>
+
             {/* Profile Header Card */}
-            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+            <div className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden backdrop-blur-xl shadow-2xl shadow-black/40">
               <div className="absolute -top-24 -right-24 w-60 h-60 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
               <div className="flex items-center gap-5 z-10">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-violet-600 border-2 border-blue-400/30 flex items-center justify-center text-2xl font-black text-white shadow-xl shadow-blue-500/20">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 border-2 border-blue-400/30 flex items-center justify-center text-2xl font-black text-white shadow-xl shadow-blue-500/20">
                   {user?.full_name?.charAt(0)?.toUpperCase() || "U"}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-black text-white">{user?.full_name || "User Profile"}</h1>
-                    <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                      {user?.role || "user"}
+                  <div className="flex items-center gap-2.5">
+                    <h1 className="text-2xl font-black text-white tracking-tight">{user?.full_name || "User Profile"}</h1>
+                    <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      Active Member
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">{user?.email}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    {profileForm.current_role ? `${profileForm.current_role} • ` : ""}
-                    {profileForm.city ? `${profileForm.city}, ` : ""}{profileForm.country || "Global Member"}
-                  </p>
+                  <p className="text-xs text-slate-400 font-medium mt-1">{user?.email}</p>
+                  <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500 font-semibold">
+                    {profileForm.current_role && (
+                      <span className="bg-slate-950/60 px-2.5 py-0.5 rounded-md border border-slate-800 text-blue-400">
+                        {profileForm.current_role}
+                      </span>
+                    )}
+                    {profileForm.city && (
+                      <span className="flex items-center gap-1 text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 text-slate-500">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                        </svg>
+                        {profileForm.city}{profileForm.country ? `, ${profileForm.country}` : ""}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <button
                 onClick={handleSaveProfile}
                 disabled={profileSaving}
-                className="z-10 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-xs font-bold text-white transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2 self-stretch md:self-auto justify-center"
+                className="z-10 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-xs font-bold text-white transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 flex items-center gap-2 self-stretch md:self-auto justify-center"
               >
                 {profileSaving ? (
                   <>
                     <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                    Saving...
+                    Saving Profile...
                   </>
                 ) : (
                   <>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                     </svg>
-                    Save Profile Changes
+                    Save Changes
                   </>
                 )}
               </button>
             </div>
 
             {profileSuccessMsg && (
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs font-bold text-emerald-400 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs font-bold text-emerald-400 flex items-center gap-2.5 shadow-lg shadow-emerald-500/5 animate-fade-in">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 flex-shrink-0">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
                 {profileSuccessMsg}
@@ -1818,68 +1855,81 @@ function Dashboard() {
             )}
 
             {/* Section 1: 👤 Personal Information */}
-            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
-              <div className="border-b border-slate-800/80 pb-4">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span className="text-xl">👤</span> Personal Information
-                </h3>
-                <p className="text-xs text-slate-400 mt-1">Basic contact and identification details</p>
+            <div id="profile-personal" className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 hover:border-slate-700/80 transition-all">
+              <div className="border-b border-slate-800/80 pb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                    <span className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-sm">👤</span>
+                    Personal Information
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">Basic contact and personal identification details</p>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Required Fields *</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Full Name *</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2 flex items-center gap-1">
+                    Full Name <span className="text-blue-400">*</span>
+                  </label>
                   <input
                     type="text"
                     name="full_name"
                     value={profileForm.full_name || ""}
                     onChange={handleProfileInputChange}
                     placeholder="Your Full Name"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email Address (Read Only)</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Email Address (Read Only)</label>
                   <input
                     type="email"
                     value={user?.email || ""}
                     disabled
                     readOnly
-                    className="w-full bg-slate-950/30 border border-slate-850 rounded-xl px-4 py-2.5 text-xs text-slate-500 cursor-not-allowed"
+                    className="w-full bg-slate-950/40 border border-slate-850 rounded-xl px-4 py-3 text-xs text-slate-500 cursor-not-allowed font-medium"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Mobile Number</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Mobile Number</label>
                   <input
                     type="tel"
                     name="phone"
                     value={profileForm.phone || ""}
                     onChange={handleProfileInputChange}
                     placeholder="+91 9876543210"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Date of Birth</label>
-                  <input
-                    type="date"
-                    name="dob"
-                    value={profileForm.dob || ""}
-                    onChange={handleProfileInputChange}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all"
-                  />
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Date of Birth</label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      name="dob"
+                      value={profileForm.dob || ""}
+                      onChange={handleProfileInputChange}
+                      className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all [color-scheme:dark] pr-10 cursor-pointer"
+                    />
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-blue-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Gender (Optional)</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Gender (Optional)</label>
                   <select
                     name="gender"
                     value={profileForm.gender || ""}
                     onChange={handleProfileInputChange}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   >
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
@@ -1890,144 +1940,146 @@ function Dashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current City</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Current City</label>
                   <input
                     type="text"
                     name="city"
                     value={profileForm.city || ""}
                     onChange={handleProfileInputChange}
-                    placeholder="e.g. Mumbai / Ahmedabad"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="e.g. Ahmedabad / Mumbai"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">State</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">State</label>
                   <input
                     type="text"
                     name="state"
                     value={profileForm.state || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. Gujarat / Maharashtra"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Country</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Country</label>
                   <input
                     type="text"
                     name="country"
                     value={profileForm.country || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. India"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
               </div>
             </div>
 
             {/* Section 2: 🎓 Education */}
-            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+            <div id="profile-education" className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 hover:border-slate-700/80 transition-all">
               <div className="border-b border-slate-800/80 pb-4">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span className="text-xl">🎓</span> Education
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-sm">🎓</span>
+                  Academic & Education
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">Academic degree and institution records</p>
+                <p className="text-xs text-slate-400 mt-1">College, degree, specialization, and academic evaluation</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">College / University Name</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">College / University Name</label>
                   <input
                     type="text"
                     name="college"
                     value={profileForm.college || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. GTU / Nirma University / IIT Bombay"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Degree</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Degree</label>
                   <input
                     type="text"
                     name="degree"
                     value={profileForm.degree || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. B.Tech / B.E. / BCA / MCA"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Branch / Specialization</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Branch / Specialization</label>
                   <input
                     type="text"
                     name="branch"
                     value={profileForm.branch || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. Computer Engineering / Information Technology"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current Semester / Year</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Current Semester / Year</label>
                   <input
                     type="text"
                     name="current_semester"
                     value={profileForm.current_semester || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. 7th Semester / 4th Year"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Graduation Year</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Graduation Year</label>
                   <input
                     type="text"
                     name="graduation_year"
                     value={profileForm.graduation_year || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. 2025"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">CGPA / Percentage (Optional)</label>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">CGPA / Percentage (Optional)</label>
                   <input
                     type="text"
                     name="cgpa"
                     value={profileForm.cgpa || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. 8.5 CGPA / 85%"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
               </div>
             </div>
 
             {/* Section 3: 💼 Professional Information */}
-            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+            <div id="profile-professional" className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 hover:border-slate-700/80 transition-all">
               <div className="border-b border-slate-800/80 pb-4">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span className="text-xl">💼</span> Professional Information
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-sm">💼</span>
+                  Professional Profile & Preferences
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">Career objectives, experience, and role preferences</p>
+                <p className="text-xs text-slate-400 mt-1">Role preferences, career goals, and experience level</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current Role Status</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Current Role Status</label>
                   <select
                     name="current_role"
                     value={profileForm.current_role || ""}
                     onChange={handleProfileInputChange}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   >
                     <option value="">Select Status</option>
                     <option value="Student">Student</option>
@@ -2038,36 +2090,36 @@ function Dashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Years of Experience</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Years of Experience</label>
                   <input
                     type="text"
                     name="experience_years"
                     value={profileForm.experience_years || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. 0 Years (Fresher) / 2 Years"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Preferred Job Role</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Preferred Job Role</label>
                   <input
                     type="text"
                     name="preferred_role"
                     value={profileForm.preferred_role || ""}
                     onChange={handleProfileInputChange}
                     placeholder="e.g. Full Stack Developer / AI Engineer"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Preferred Work Mode</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Preferred Work Mode</label>
                   <select
                     name="preferred_work_mode"
                     value={profileForm.preferred_work_mode || ""}
                     onChange={handleProfileInputChange}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   >
                     <option value="">Select Preference</option>
                     <option value="Remote">Remote</option>
@@ -2077,209 +2129,213 @@ function Dashboard() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Career Objective / About Me</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Career Objective / About Me</label>
                   <textarea
                     name="about_me"
                     rows={3}
                     value={profileForm.about_me || ""}
                     onChange={handleProfileInputChange}
-                    placeholder="Write a brief professional summary about your career goals and aspirations..."
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="Write a brief professional summary about your career goals and technical aspirations..."
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl p-4 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
               </div>
             </div>
 
             {/* Section 4: 🛠 Skills */}
-            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+            <div id="profile-skills" className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 hover:border-slate-700/80 transition-all">
               <div className="border-b border-slate-800/80 pb-4">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span className="text-xl">🛠</span> Skills
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-sm">🛠</span>
+                  Categorized Skills & Tech Stack
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">Categorized technical expertise and stack</p>
+                <p className="text-xs text-slate-400 mt-1">Programming languages, frameworks, tools, and databases</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Technical Skills</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Technical Skills</label>
                   <input
                     type="text"
                     name="skills_tech"
                     value={profileForm.skills_tech || ""}
                     onChange={handleProfileInputChange}
                     placeholder="Data Structures, System Design, REST APIs"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Programming Languages</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Programming Languages</label>
                   <input
                     type="text"
                     name="skills_programming"
                     value={profileForm.skills_programming || ""}
                     onChange={handleProfileInputChange}
                     placeholder="Python, JavaScript, TypeScript, C++, Java"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Frameworks & Libraries</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Frameworks & Libraries</label>
                   <input
                     type="text"
                     name="skills_frameworks"
                     value={profileForm.skills_frameworks || ""}
                     onChange={handleProfileInputChange}
                     placeholder="React, Next.js, Node.js, FastAPI, TailwindCSS"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Databases</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Databases</label>
                   <input
                     type="text"
                     name="skills_databases"
                     value={profileForm.skills_databases || ""}
                     onChange={handleProfileInputChange}
                     placeholder="PostgreSQL, MongoDB, MySQL, Redis"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Tools & Platforms</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Tools & Platforms</label>
                   <input
                     type="text"
                     name="skills_tools"
                     value={profileForm.skills_tools || ""}
                     onChange={handleProfileInputChange}
                     placeholder="Git, Docker, VS Code, Linux, AWS, Vercel"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
               </div>
             </div>
 
             {/* Section 5: 🌐 Social Links */}
-            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+            <div id="profile-social" className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 hover:border-slate-700/80 transition-all">
               <div className="border-b border-slate-800/80 pb-4">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span className="text-xl">🌐</span> Social & Portfolio Links
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sm">🌐</span>
+                  Social & Portfolio Handles
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">Online profiles and developer portfolios</p>
+                <p className="text-xs text-slate-400 mt-1">Connect your code repositories and online profiles</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">GitHub URL</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">GitHub URL</label>
                   <input
                     type="url"
                     name="github_url"
                     value={profileForm.github_url || ""}
                     onChange={handleProfileInputChange}
                     placeholder="https://github.com/username"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">LinkedIn URL</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">LinkedIn URL</label>
                   <input
                     type="url"
                     name="linkedin_url"
                     value={profileForm.linkedin_url || ""}
                     onChange={handleProfileInputChange}
                     placeholder="https://linkedin.com/in/username"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Portfolio Website (Optional)</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Portfolio Website (Optional)</label>
                   <input
                     type="url"
                     name="portfolio_url"
                     value={profileForm.portfolio_url || ""}
                     onChange={handleProfileInputChange}
                     placeholder="https://yourportfolio.com"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">LeetCode URL (Optional)</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">LeetCode URL (Optional)</label>
                   <input
                     type="url"
                     name="leetcode_url"
                     value={profileForm.leetcode_url || ""}
                     onChange={handleProfileInputChange}
                     placeholder="https://leetcode.com/u/username"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">HackerRank URL (Optional)</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">HackerRank URL (Optional)</label>
                   <input
                     type="url"
                     name="hackerrank_url"
                     value={profileForm.hackerrank_url || ""}
                     onChange={handleProfileInputChange}
                     placeholder="https://hackerrank.com/profile/username"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
               </div>
             </div>
 
             {/* Section 6: 📄 Resume Information (Read Only) */}
-            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+            <div id="profile-resume" className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30">
               <div className="border-b border-slate-800/80 pb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-bold text-white flex items-center gap-2">
-                    <span className="text-xl">📄</span> Resume Analytics Summary (Read Only)
+                  <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                    <span className="w-8 h-8 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-sm">📄</span>
+                    Resume Analytics Summary (Read Only)
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1">Automatic sync of your latest analyzed resume stats</p>
+                  <p className="text-xs text-slate-400 mt-1">Automatic sync of your latest analyzed resume metrics</p>
                 </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Read Only</span>
+                <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700">Read Only</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current Resume Name</p>
-                  <p className="text-xs font-bold text-white truncate mt-1.5">{profileStats?.current_resume_name || "None Uploaded"}</p>
+                <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 shadow-inner">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Current Resume Name</p>
+                  <p className="text-xs font-bold text-white truncate mt-2">{profileStats?.current_resume_name || "None Uploaded"}</p>
                 </div>
 
-                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Upload Date</p>
-                  <p className="text-xs font-bold text-slate-300 truncate mt-1.5">{profileStats?.resume_upload_date || "N/A"}</p>
+                <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 shadow-inner">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Upload Date</p>
+                  <p className="text-xs font-bold text-slate-300 truncate mt-2">{profileStats?.resume_upload_date || "N/A"}</p>
                 </div>
 
-                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Latest ATS Score</p>
-                  <p className="text-lg font-black text-emerald-400 mt-1">{profileStats?.latest_ats_score ?? 0}%</p>
+                <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 shadow-inner">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Latest ATS Score</p>
+                  <p className="text-xl font-black text-emerald-400 mt-1.5">{profileStats?.latest_ats_score ?? 0}%</p>
                 </div>
 
-                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Uploads</p>
-                  <p className="text-lg font-black text-blue-400 mt-1">{profileStats?.total_resume_uploads ?? 0}</p>
+                <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 shadow-inner">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Total Uploads</p>
+                  <p className="text-xl font-black text-blue-400 mt-1.5">{profileStats?.total_resume_uploads ?? 0}</p>
                 </div>
               </div>
             </div>
 
             {/* Section 7: ⚙️ Account (Change Password) */}
-            <form onSubmit={handleChangePassword} className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+            <form id="profile-security" onSubmit={handleChangePassword} className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30">
               <div className="border-b border-slate-800/80 pb-4">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span className="text-xl">⚙️</span> Account Security & Password
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-sm">⚙️</span>
+                  Account Security & Password
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">Change your account login password</p>
+                <p className="text-xs text-slate-400 mt-1">Update your login security credentials</p>
               </div>
 
               {passwordMsg && (
-                <div className={`rounded-xl border p-4 text-xs font-bold ${
+                <div className={`rounded-2xl border p-4 text-xs font-bold shadow-lg ${
                   passwordMsg.type === "success"
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                     : "border-red-500/30 bg-red-500/10 text-red-400"
@@ -2288,40 +2344,40 @@ function Dashboard() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current Password</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Current Password</label>
                   <input
                     type="password"
                     value={passwordForm.current_password}
                     onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
                     placeholder="••••••••"
                     required
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">New Password</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">New Password</label>
                   <input
                     type="password"
                     value={passwordForm.new_password}
                     onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
                     placeholder="••••••••"
                     required
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Confirm New Password</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">Confirm New Password</label>
                   <input
                     type="password"
                     value={passwordForm.confirm_password}
                     onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
                     placeholder="••••••••"
                     required
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
               </div>
@@ -2329,7 +2385,7 @@ function Dashboard() {
               <button
                 type="submit"
                 disabled={passwordSaving}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition-all flex items-center gap-2"
+                className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition-all flex items-center gap-2"
               >
                 {passwordSaving ? "Updating Password..." : "Change Password"}
               </button>
