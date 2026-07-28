@@ -951,7 +951,7 @@ function Dashboard() {
                           <h2 className="text-2xl font-bold text-white mt-1.5">{selectedResume.file_name}</h2>
                         </div>
                         <p className="text-xs text-slate-400 leading-relaxed max-w-xl">
-                          ATS Score indicates alignment with core industry technologies. Review detected keywords and suggestions below to raise compliance.
+                          ATS Score indicates alignment with core industry technologies. Review detected skills and suggestions below to raise compliance.
                         </p>
                       </div>
                     </div>
@@ -964,7 +964,7 @@ function Dashboard() {
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-400">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
                           </svg>
-                          Identified Keywords ({currentSkillsAndSuggestions.skills.length})
+                          Identified Skills ({currentSkillsAndSuggestions.skills.length})
                         </h4>
                         {currentSkillsAndSuggestions.skills.length > 0 ? (
                           <div className="flex flex-wrap gap-2">
@@ -975,7 +975,7 @@ function Dashboard() {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-xs text-slate-500 italic">No indexed keywords found in the parsed text.</p>
+                          <p className="text-xs text-slate-500 italic">No indexed skills found in the parsed text.</p>
                         )}
                       </div>
 
