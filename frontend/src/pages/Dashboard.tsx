@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { CITIES_DATA, type CityItem } from "../utils/citiesData";
+import { COUNTRY_CODES, type CountryCodeItem } from "../utils/countryCodes";
 
 interface User {
   id: number;
@@ -250,6 +251,47 @@ function Dashboard() {
       country: item.country,
     }));
     setShowCityDropdown(false);
+  };
+
+  // Country Code States & Handlers
+  const [countryCode, setCountryCode] = useState<string>("+91");
+  const [showCodeDropdown, setShowCodeDropdown] = useState(false);
+  const [codeSearchQuery, setCodeSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (profileForm.phone) {
+      const parts = profileForm.phone.trim().split(" ");
+      if (parts.length > 1 && parts[0].startsWith("+")) {
+        setCountryCode(parts[0]);
+      }
+    }
+  }, [profileForm.phone]);
+
+  const getPhoneNumberOnly = () => {
+    if (!profileForm.phone) return "";
+    const parts = profileForm.phone.trim().split(" ");
+    if (parts.length > 1 && parts[0].startsWith("+")) {
+      return parts.slice(1).join("");
+    }
+    return profileForm.phone;
+  };
+
+  const handlePhoneNumberChange = (num: string) => {
+    const cleanNum = num.replace(/\D/g, "");
+    setProfileForm((prev: any) => ({
+      ...prev,
+      phone: `${countryCode} ${cleanNum}`.trim(),
+    }));
+  };
+
+  const handleSelectCountryCode = (item: CountryCodeItem) => {
+    setCountryCode(item.code);
+    const currentNum = getPhoneNumberOnly();
+    setProfileForm((prev: any) => ({
+      ...prev,
+      phone: `${item.code} ${currentNum}`.trim(),
+    }));
+    setShowCodeDropdown(false);
   };
 
   const handleSaveProfile = async (e?: React.FormEvent) => {
@@ -2010,14 +2052,67 @@ function Dashboard() {
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-300 mb-2">Mobile Number</label>
-                        <input
-                          type="tel"
-                          name="phone"
-                          value={profileForm.phone || ""}
-                          onChange={handleProfileInputChange}
-                          placeholder="+91 9876543210"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                        />
+                        <div className="flex items-center gap-2">
+                          {/* Country Code Dropdown Selector */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setShowCodeDropdown(!showCodeDropdown)}
+                              className="h-11 px-3 bg-slate-950/80 border border-slate-800/90 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer whitespace-nowrap"
+                            >
+                              <span>{COUNTRY_CODES.find((c) => c.code === countryCode)?.flag || "🌐"}</span>
+                              <span>{countryCode}</span>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-slate-400">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                              </svg>
+                            </button>
+
+                            {/* Floating Dropdown Menu with Search */}
+                            {showCodeDropdown && (
+                              <div className="absolute z-50 left-0 top-full mt-1.5 w-64 bg-slate-900/95 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-2xl p-2 space-y-2 animate-fade-in">
+                                <input
+                                  type="text"
+                                  value={codeSearchQuery}
+                                  onChange={(e) => setCodeSearchQuery(e.target.value)}
+                                  placeholder="Search country or code..."
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                                />
+
+                                <div className="max-h-48 overflow-y-auto space-y-0.5 divide-y divide-slate-800/40">
+                                  {COUNTRY_CODES.filter(
+                                    (c) =>
+                                      c.country.toLowerCase().includes(codeSearchQuery.toLowerCase()) ||
+                                      c.code.includes(codeSearchQuery)
+                                  ).map((item, idx) => (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => handleSelectCountryCode(item)}
+                                      className={`w-full px-3 py-2 text-left text-xs rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+                                        countryCode === item.code ? "bg-blue-600/30 text-blue-300 font-bold" : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span>{item.flag}</span>
+                                        <span className="font-semibold">{item.country}</span>
+                                      </div>
+                                      <span className="font-mono text-slate-400">{item.code}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Phone Number Input (NO placeholder) */}
+                          <input
+                            type="tel"
+                            name="phone_number"
+                            value={getPhoneNumberOnly()}
+                            onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                            className="flex-1 bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          />
+                        </div>
                       </div>
 
                       {/* Birthday Picker (Day / Month / Year Dropdowns) */}
