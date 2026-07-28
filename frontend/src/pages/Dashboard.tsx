@@ -272,6 +272,11 @@ function Dashboard() {
     }
   }, [profileForm.phone]);
 
+  const getMaxDigitsForCurrentCountry = () => {
+    const found = COUNTRY_CODES.find((c) => c.code === countryCode);
+    return found ? found.maxDigits : 10;
+  };
+
   const getPhoneNumberOnly = () => {
     if (!profileForm.phone) return "";
     let str = profileForm.phone.trim();
@@ -284,7 +289,8 @@ function Dashboard() {
   };
 
   const handlePhoneNumberChange = (num: string) => {
-    const cleanDigits = num.replace(/\D/g, "");
+    const maxLen = getMaxDigitsForCurrentCountry();
+    const cleanDigits = num.replace(/\D/g, "").slice(0, maxLen);
     setProfileForm((prev: any) => ({
       ...prev,
       phone: cleanDigits ? `${countryCode} ${cleanDigits}` : "",
@@ -293,7 +299,7 @@ function Dashboard() {
 
   const handleSelectCountryCode = (item: CountryCodeItem) => {
     setCountryCode(item.code);
-    const currentDigits = getPhoneNumberOnly();
+    const currentDigits = getPhoneNumberOnly().slice(0, item.maxDigits);
     setProfileForm((prev: any) => ({
       ...prev,
       phone: currentDigits ? `${item.code} ${currentDigits}` : "",
@@ -2058,7 +2064,12 @@ function Dashboard() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Mobile Number</label>
+                        <label className="block text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+                          <span>Mobile Number</span>
+                          <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-950/90 border border-slate-800/90 px-2 py-0.5 rounded-md">
+                            {getMaxDigitsForCurrentCountry()} Digits Max
+                          </span>
+                        </label>
                         <div className="flex items-center gap-2">
                           {/* Country Code Dropdown Selector */}
                           <div className="relative">
@@ -2111,10 +2122,11 @@ function Dashboard() {
                             )}
                           </div>
 
-                          {/* Phone Number Input (NO placeholder) */}
+                          {/* Phone Number Input (Strict maxLength enforce) */}
                           <input
                             type="tel"
                             name="phone_number"
+                            maxLength={getMaxDigitsForCurrentCountry()}
                             value={getPhoneNumberOnly()}
                             onChange={(e) => handlePhoneNumberChange(e.target.value)}
                             className="flex-1 bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
