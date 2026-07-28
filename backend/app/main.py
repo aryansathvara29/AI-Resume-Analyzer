@@ -11,10 +11,45 @@ from app.models.resume import Resume
 # -----------------------
 Base.metadata.create_all(bind=engine)
 
+profile_columns = [
+    "auth_provider VARCHAR(50) DEFAULT 'email'",
+    "phone VARCHAR(50)",
+    "dob VARCHAR(50)",
+    "gender VARCHAR(50)",
+    "city VARCHAR(100)",
+    "state VARCHAR(100)",
+    "country VARCHAR(100)",
+    "college VARCHAR(255)",
+    "degree VARCHAR(100)",
+    "branch VARCHAR(100)",
+    "current_semester VARCHAR(50)",
+    "graduation_year VARCHAR(50)",
+    "cgpa VARCHAR(50)",
+    "current_role VARCHAR(100)",
+    "about_me VARCHAR(1000)",
+    "experience_years VARCHAR(50)",
+    "preferred_role VARCHAR(100)",
+    "preferred_work_mode VARCHAR(50)",
+    "skills_tech VARCHAR(500)",
+    "skills_programming VARCHAR(500)",
+    "skills_frameworks VARCHAR(500)",
+    "skills_databases VARCHAR(500)",
+    "skills_tools VARCHAR(500)",
+    "github_url VARCHAR(255)",
+    "linkedin_url VARCHAR(255)",
+    "portfolio_url VARCHAR(255)",
+    "leetcode_url VARCHAR(255)",
+    "hackerrank_url VARCHAR(255)",
+]
+
 try:
     with engine.connect() as conn:
-        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'email';"))
-        conn.commit()
+        for col_def in profile_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_def};"))
+                conn.commit()
+            except Exception:
+                pass
 except Exception as e:
     print(f"[INFO] Migration check info: {e}")
 

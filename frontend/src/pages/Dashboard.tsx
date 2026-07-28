@@ -37,12 +37,46 @@ interface HistoryItem {
   uploaded_at: string;
 }
 
+interface User {
+  id: number;
+  full_name: string;
+  email: string;
+  role: string;
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  college?: string;
+  degree?: string;
+  branch?: string;
+  current_semester?: string;
+  graduation_year?: string;
+  cgpa?: string;
+  current_role?: string;
+  about_me?: string;
+  experience_years?: string;
+  preferred_role?: string;
+  preferred_work_mode?: string;
+  skills_tech?: string;
+  skills_programming?: string;
+  skills_frameworks?: string;
+  skills_databases?: string;
+  skills_tools?: string;
+  github_url?: string;
+  linkedin_url?: string;
+  portfolio_url?: string;
+  leetcode_url?: string;
+  hackerrank_url?: string;
+}
+
 function Dashboard() {
   const navigate = useNavigate();
 
   // Navigation state
   const [activeTab, setActiveTab] = useState<
-    "overview" | "upload" | "history" | "job-match" | "chatbot" | "interview" | "roadmap" | "recruiter"
+    "overview" | "upload" | "history" | "job-match" | "chatbot" | "interview" | "roadmap" | "recruiter" | "profile"
   >("overview");
 
   // Data states
@@ -83,6 +117,26 @@ function Dashboard() {
   const [recruiterResumes, setRecruiterResumes] = useState<any[]>([]);
   const [recruiterLoading, setRecruiterLoading] = useState(false);
 
+  // Profile & Settings states
+  const [profileForm, setProfileForm] = useState<any>({});
+  const [profileStats, setProfileStats] = useState<{
+    current_resume_name: string;
+    resume_upload_date: string;
+    latest_ats_score: number;
+    latest_ai_score: number;
+    total_resume_uploads: number;
+  } | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState("");
+
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   // File upload state
   const [file, setFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -99,14 +153,17 @@ function Dashboard() {
       setErrorMsg("");
       const userRes = await api.get("/users/me");
       setUser(userRes.data);
+      setProfileForm(userRes.data);
 
       try {
-        const [statsRes, historyRes] = await Promise.all([
+        const [statsRes, historyRes, profileStatsRes] = await Promise.all([
           api.get("/dashboard/stats"),
           api.get("/history/resumes"),
+          api.get("/users/me/resume-stats"),
         ]);
         setStats(statsRes.data);
         setHistory(historyRes.data.history || []);
+        setProfileStats(profileStatsRes.data);
       } catch (statsErr) {
         console.error("Error fetching stats/history:", statsErr);
       }
@@ -146,6 +203,60 @@ function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
+  };
+
+  // Profile Form Handlers
+  const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setProfileForm((prev: any) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveProfile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    try {
+      setProfileSaving(true);
+      setProfileSuccessMsg("");
+      setErrorMsg("");
+      const res = await api.put("/users/me", profileForm);
+      setUser(res.data);
+      setProfileForm(res.data);
+      setProfileSuccessMsg("Profile information saved successfully! ✨");
+      setTimeout(() => setProfileSuccessMsg(""), 4000);
+    } catch (err: any) {
+      console.error("Error saving profile:", err);
+      let detailMsg = err.response?.data?.detail;
+      setErrorMsg(detailMsg || "Failed to save profile changes.");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setPasswordMsg({ type: "error", text: "New password and confirmation do not match." });
+      return;
+    }
+    if (passwordForm.new_password.length < 6) {
+      setPasswordMsg({ type: "error", text: "New password must be at least 6 characters long." });
+      return;
+    }
+    try {
+      setPasswordSaving(true);
+      setPasswordMsg(null);
+      await api.put("/users/change-password", {
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password,
+      });
+      setPasswordMsg({ type: "success", text: "Password changed successfully! 🔑" });
+      setPasswordForm({ current_password: "", new_password: "", confirm_password: "" });
+    } catch (err: any) {
+      console.error("Error changing password:", err);
+      let detailMsg = err.response?.data?.detail;
+      setPasswordMsg({ type: "error", text: detailMsg || "Failed to change password." });
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   // Inspect detailed resume from history
@@ -593,6 +704,20 @@ function Dashboard() {
               Career Roadmap
             </button>
 
+            <button
+              onClick={() => setActiveTab("profile")}
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === "profile"
+                  ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+              </svg>
+              Profile & Settings
+            </button>
+
             {(user?.role === "admin" || user?.role === "recruiter") && (
               <button
                 onClick={() => setActiveTab("recruiter")}
@@ -613,13 +738,26 @@ function Dashboard() {
 
         {/* User Card & Logout */}
         <div className="mt-8 pt-6 border-t border-slate-800">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-blue-400">
-              {user?.full_name?.charAt(0) || "U"}
+          <div
+            onClick={() => setActiveTab("profile")}
+            className={`flex items-center gap-3 mb-4 p-2.5 rounded-xl cursor-pointer transition-all border ${
+              activeTab === "profile"
+                ? "bg-slate-800/80 border-blue-500/40 shadow-lg shadow-blue-500/10"
+                : "bg-slate-900/40 border-slate-800/80 hover:bg-slate-800/60 hover:border-slate-700"
+            }`}
+            title="Click to view & edit Profile"
+          >
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-violet-600 border border-blue-400/30 flex items-center justify-center font-black text-white shadow-md shadow-blue-500/10">
+              {user?.full_name?.charAt(0)?.toUpperCase() || "U"}
             </div>
-            <div className="truncate">
-              <p className="text-xs font-semibold text-white truncate">{user?.full_name || "Profile Loading..."}</p>
-              <p className="text-[10px] text-slate-500 truncate">{user?.email || "syncing..."}</p>
+            <div className="truncate flex-1">
+              <p className="text-xs font-bold text-white truncate flex items-center justify-between">
+                <span>{user?.full_name || "Profile Loading..."}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3 text-blue-400">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </p>
+              <p className="text-[10px] text-slate-400 truncate mt-0.5">{user?.email || "syncing..."}</p>
             </div>
           </div>
           <button
@@ -1622,6 +1760,580 @@ function Dashboard() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* 9. USER PROFILE & SETTINGS TAB */}
+        {activeTab === "profile" && (
+          <div className="space-y-8 max-w-5xl mx-auto pb-16 animate-fade-in">
+            {/* Profile Header Card */}
+            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute -top-24 -right-24 w-60 h-60 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+              <div className="flex items-center gap-5 z-10">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-violet-600 border-2 border-blue-400/30 flex items-center justify-center text-2xl font-black text-white shadow-xl shadow-blue-500/20">
+                  {user?.full_name?.charAt(0)?.toUpperCase() || "U"}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-black text-white">{user?.full_name || "User Profile"}</h1>
+                    <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      {user?.role || "user"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">{user?.email}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {profileForm.current_role ? `${profileForm.current_role} • ` : ""}
+                    {profileForm.city ? `${profileForm.city}, ` : ""}{profileForm.country || "Global Member"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleSaveProfile}
+                disabled={profileSaving}
+                className="z-10 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-xs font-bold text-white transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2 self-stretch md:self-auto justify-center"
+              >
+                {profileSaving ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    Save Profile Changes
+                  </>
+                )}
+              </button>
+            </div>
+
+            {profileSuccessMsg && (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs font-bold text-emerald-400 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                {profileSuccessMsg}
+              </div>
+            )}
+
+            {/* Section 1: 👤 Personal Information */}
+            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+              <div className="border-b border-slate-800/80 pb-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span className="text-xl">👤</span> Personal Information
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Basic contact and identification details</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Full Name *</label>
+                  <input
+                    type="text"
+                    name="full_name"
+                    value={profileForm.full_name || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="Your Full Name"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email Address (Read Only)</label>
+                  <input
+                    type="email"
+                    value={user?.email || ""}
+                    disabled
+                    readOnly
+                    className="w-full bg-slate-950/30 border border-slate-850 rounded-xl px-4 py-2.5 text-xs text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Mobile Number</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={profileForm.phone || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="+91 9876543210"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Date of Birth</label>
+                  <input
+                    type="date"
+                    name="dob"
+                    value={profileForm.dob || ""}
+                    onChange={handleProfileInputChange}
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Gender (Optional)</label>
+                  <select
+                    name="gender"
+                    value={profileForm.gender || ""}
+                    onChange={handleProfileInputChange}
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current City</label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={profileForm.city || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. Mumbai / Ahmedabad"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">State</label>
+                  <input
+                    type="text"
+                    name="state"
+                    value={profileForm.state || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. Gujarat / Maharashtra"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Country</label>
+                  <input
+                    type="text"
+                    name="country"
+                    value={profileForm.country || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. India"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: 🎓 Education */}
+            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+              <div className="border-b border-slate-800/80 pb-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span className="text-xl">🎓</span> Education
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Academic degree and institution records</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">College / University Name</label>
+                  <input
+                    type="text"
+                    name="college"
+                    value={profileForm.college || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. GTU / Nirma University / IIT Bombay"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Degree</label>
+                  <input
+                    type="text"
+                    name="degree"
+                    value={profileForm.degree || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. B.Tech / B.E. / BCA / MCA"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Branch / Specialization</label>
+                  <input
+                    type="text"
+                    name="branch"
+                    value={profileForm.branch || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. Computer Engineering / Information Technology"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current Semester / Year</label>
+                  <input
+                    type="text"
+                    name="current_semester"
+                    value={profileForm.current_semester || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. 7th Semester / 4th Year"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Graduation Year</label>
+                  <input
+                    type="text"
+                    name="graduation_year"
+                    value={profileForm.graduation_year || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. 2025"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">CGPA / Percentage (Optional)</label>
+                  <input
+                    type="text"
+                    name="cgpa"
+                    value={profileForm.cgpa || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. 8.5 CGPA / 85%"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: 💼 Professional Information */}
+            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+              <div className="border-b border-slate-800/80 pb-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span className="text-xl">💼</span> Professional Information
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Career objectives, experience, and role preferences</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current Role Status</label>
+                  <select
+                    name="current_role"
+                    value={profileForm.current_role || ""}
+                    onChange={handleProfileInputChange}
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all"
+                  >
+                    <option value="">Select Status</option>
+                    <option value="Student">Student</option>
+                    <option value="Fresher">Fresher</option>
+                    <option value="Working Professional">Working Professional</option>
+                    <option value="Freelancer">Freelancer</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Years of Experience</label>
+                  <input
+                    type="text"
+                    name="experience_years"
+                    value={profileForm.experience_years || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. 0 Years (Fresher) / 2 Years"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Preferred Job Role</label>
+                  <input
+                    type="text"
+                    name="preferred_role"
+                    value={profileForm.preferred_role || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="e.g. Full Stack Developer / AI Engineer"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Preferred Work Mode</label>
+                  <select
+                    name="preferred_work_mode"
+                    value={profileForm.preferred_work_mode || ""}
+                    onChange={handleProfileInputChange}
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all"
+                  >
+                    <option value="">Select Preference</option>
+                    <option value="Remote">Remote</option>
+                    <option value="Hybrid">Hybrid</option>
+                    <option value="On-site">On-site</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Career Objective / About Me</label>
+                  <textarea
+                    name="about_me"
+                    rows={3}
+                    value={profileForm.about_me || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="Write a brief professional summary about your career goals and aspirations..."
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 4: 🛠 Skills */}
+            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+              <div className="border-b border-slate-800/80 pb-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span className="text-xl">🛠</span> Skills
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Categorized technical expertise and stack</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Technical Skills</label>
+                  <input
+                    type="text"
+                    name="skills_tech"
+                    value={profileForm.skills_tech || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="Data Structures, System Design, REST APIs"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Programming Languages</label>
+                  <input
+                    type="text"
+                    name="skills_programming"
+                    value={profileForm.skills_programming || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="Python, JavaScript, TypeScript, C++, Java"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Frameworks & Libraries</label>
+                  <input
+                    type="text"
+                    name="skills_frameworks"
+                    value={profileForm.skills_frameworks || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="React, Next.js, Node.js, FastAPI, TailwindCSS"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Databases</label>
+                  <input
+                    type="text"
+                    name="skills_databases"
+                    value={profileForm.skills_databases || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="PostgreSQL, MongoDB, MySQL, Redis"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Tools & Platforms</label>
+                  <input
+                    type="text"
+                    name="skills_tools"
+                    value={profileForm.skills_tools || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="Git, Docker, VS Code, Linux, AWS, Vercel"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 5: 🌐 Social Links */}
+            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+              <div className="border-b border-slate-800/80 pb-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span className="text-xl">🌐</span> Social & Portfolio Links
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Online profiles and developer portfolios</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">GitHub URL</label>
+                  <input
+                    type="url"
+                    name="github_url"
+                    value={profileForm.github_url || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="https://github.com/username"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">LinkedIn URL</label>
+                  <input
+                    type="url"
+                    name="linkedin_url"
+                    value={profileForm.linkedin_url || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="https://linkedin.com/in/username"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Portfolio Website (Optional)</label>
+                  <input
+                    type="url"
+                    name="portfolio_url"
+                    value={profileForm.portfolio_url || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="https://yourportfolio.com"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">LeetCode URL (Optional)</label>
+                  <input
+                    type="url"
+                    name="leetcode_url"
+                    value={profileForm.leetcode_url || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="https://leetcode.com/u/username"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">HackerRank URL (Optional)</label>
+                  <input
+                    type="url"
+                    name="hackerrank_url"
+                    value={profileForm.hackerrank_url || ""}
+                    onChange={handleProfileInputChange}
+                    placeholder="https://hackerrank.com/profile/username"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 6: 📄 Resume Information (Read Only) */}
+            <div className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+              <div className="border-b border-slate-800/80 pb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span className="text-xl">📄</span> Resume Analytics Summary (Read Only)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">Automatic sync of your latest analyzed resume stats</p>
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Read Only</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current Resume Name</p>
+                  <p className="text-xs font-bold text-white truncate mt-1.5">{profileStats?.current_resume_name || "None Uploaded"}</p>
+                </div>
+
+                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Upload Date</p>
+                  <p className="text-xs font-bold text-slate-300 truncate mt-1.5">{profileStats?.resume_upload_date || "N/A"}</p>
+                </div>
+
+                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Latest ATS Score</p>
+                  <p className="text-lg font-black text-emerald-400 mt-1">{profileStats?.latest_ats_score ?? 0}%</p>
+                </div>
+
+                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Uploads</p>
+                  <p className="text-lg font-black text-blue-400 mt-1">{profileStats?.total_resume_uploads ?? 0}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 7: ⚙️ Account (Change Password) */}
+            <form onSubmit={handleChangePassword} className="rounded-3xl bg-slate-900/60 border border-slate-800 p-6 md:p-8 space-y-6">
+              <div className="border-b border-slate-800/80 pb-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span className="text-xl">⚙️</span> Account Security & Password
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Change your account login password</p>
+              </div>
+
+              {passwordMsg && (
+                <div className={`rounded-xl border p-4 text-xs font-bold ${
+                  passwordMsg.type === "success"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                    : "border-red-500/30 bg-red-500/10 text-red-400"
+                }`}>
+                  {passwordMsg.text}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.current_password}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+                    placeholder="••••••••"
+                    required
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.new_password}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+                    placeholder="••••••••"
+                    required
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirm_password}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
+                    placeholder="••••••••"
+                    required
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={passwordSaving}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition-all flex items-center gap-2"
+              >
+                {passwordSaving ? "Updating Password..." : "Change Password"}
+              </button>
+            </form>
           </div>
         )}
       </main>

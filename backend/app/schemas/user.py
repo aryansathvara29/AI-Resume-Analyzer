@@ -19,14 +19,80 @@ class UserCreate(BaseModel):
         return email_str
 
 
+from typing import Optional
+
+
 class UserResponse(BaseModel):
     id: int
     full_name: str
     email: EmailStr
     role: str
+    phone: Optional[str] = None
+    dob: Optional[str] = None
+    gender: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    college: Optional[str] = None
+    degree: Optional[str] = None
+    branch: Optional[str] = None
+    current_semester: Optional[str] = None
+    graduation_year: Optional[str] = None
+    cgpa: Optional[str] = None
+    current_role: Optional[str] = None
+    about_me: Optional[str] = None
+    experience_years: Optional[str] = None
+    preferred_role: Optional[str] = None
+    preferred_work_mode: Optional[str] = None
+    skills_tech: Optional[str] = None
+    skills_programming: Optional[str] = None
+    skills_frameworks: Optional[str] = None
+    skills_databases: Optional[str] = None
+    skills_tools: Optional[str] = None
+    github_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    leetcode_url: Optional[str] = None
+    hackerrank_url: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class UserProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    dob: Optional[str] = None
+    gender: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    college: Optional[str] = None
+    degree: Optional[str] = None
+    branch: Optional[str] = None
+    current_semester: Optional[str] = None
+    graduation_year: Optional[str] = None
+    cgpa: Optional[str] = None
+    current_role: Optional[str] = None
+    about_me: Optional[str] = None
+    experience_years: Optional[str] = None
+    preferred_role: Optional[str] = None
+    preferred_work_mode: Optional[str] = None
+    skills_tech: Optional[str] = None
+    skills_programming: Optional[str] = None
+    skills_frameworks: Optional[str] = None
+    skills_databases: Optional[str] = None
+    skills_tools: Optional[str] = None
+    github_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    leetcode_url: Optional[str] = None
+    hackerrank_url: Optional[str] = None
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class UserLogin(BaseModel):

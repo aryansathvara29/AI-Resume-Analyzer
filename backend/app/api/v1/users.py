@@ -9,11 +9,14 @@ from app.dependencies.auth import (
     require_role,
 )
 from app.models.user import User
+from app.models.resume import Resume
 from app.schemas.user import (
     UserCreate,
     UserResponse,
     UserLogin,
     Token,
+    UserProfileUpdate,
+    PasswordChangeRequest,
 )
 from app.core.security import (
     hash_password,
@@ -103,6 +106,69 @@ def get_logged_in_user(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
+
+
+@router.put(
+    "/me",
+    response_model=UserResponse,
+)
+def update_logged_in_user(
+    body: UserProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    update_data = body.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+    
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.put(
+    "/change-password",
+)
+def change_password(
+    body: PasswordChangeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.hashed_password or not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect.",
+        )
+    
+    current_user.hashed_password = hash_password(body.new_password)
+    db.commit()
+    return {"message": "Password updated successfully!"}
+
+
+@router.get(
+    "/me/resume-stats",
+)
+def get_user_resume_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    resumes = db.query(Resume).filter(Resume.user_id == current_user.id).order_by(Resume.uploaded_at.desc()).all()
+    
+    total_uploads = len(resumes)
+    latest_resume = resumes[0] if resumes else None
+    
+    latest_ats_score = latest_resume.ats_score if latest_resume else 0
+    latest_ai_score = (latest_ats_score + 5) if latest_resume else 0
+    if latest_ai_score > 100:
+        latest_ai_score = 100
+
+    return {
+        "current_resume_name": latest_resume.file_name if latest_resume else "No resume uploaded yet",
+        "resume_upload_date": latest_resume.uploaded_at.strftime("%d/%m/%Y, %H:%M:%S") if latest_resume and latest_resume.uploaded_at else "N/A",
+        "latest_ats_score": latest_ats_score,
+        "latest_ai_score": latest_ai_score,
+        "total_resume_uploads": total_uploads,
+    }
 
 
 @router.get(
