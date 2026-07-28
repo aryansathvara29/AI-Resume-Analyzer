@@ -2738,7 +2738,7 @@ function Dashboard() {
 
                       <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 shadow-inner">
                         <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Upload Date</p>
-                        <p className="text-xs font-bold text-slate-300 truncate mt-2">{profileStats?.resume_upload_date || "N/A"}</p>
+                        <p className="text-xs font-bold text-slate-300 truncate mt-2">{profileStats?.resume_upload_date ? profileStats.resume_upload_date.split(",")[0] : "N/A"}</p>
                       </div>
 
                       <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 shadow-inner">

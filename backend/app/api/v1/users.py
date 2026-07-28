@@ -164,7 +164,7 @@ def get_user_resume_stats(
 
     return {
         "current_resume_name": latest_resume.file_name if latest_resume else "No resume uploaded yet",
-        "resume_upload_date": latest_resume.uploaded_at.strftime("%d/%m/%Y, %H:%M:%S") if latest_resume and latest_resume.uploaded_at else "N/A",
+        "resume_upload_date": latest_resume.uploaded_at.strftime("%d/%m/%Y") if latest_resume and latest_resume.uploaded_at else "N/A",
         "latest_ats_score": latest_ats_score,
         "latest_ai_score": latest_ai_score,
         "total_resume_uploads": total_uploads,
