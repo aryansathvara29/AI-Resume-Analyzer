@@ -1873,7 +1873,7 @@ function Dashboard() {
                   <div className="flex items-center gap-2.5">
                     <h1 className="text-2xl font-black text-white tracking-tight">{user?.full_name || "User Profile"}</h1>
                     <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Active Member
+                      Active
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 font-medium mt-1">{user?.email}</p>
