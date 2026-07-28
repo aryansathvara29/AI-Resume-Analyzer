@@ -6,12 +6,11 @@ const isLocal =
     window.location.hostname === "127.0.0.1");
 
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_API_URL ||
-    (isLocal
-      ? "http://127.0.0.1:8000"
-      : "https://ai-resume-analyzer-backend-xb4l.onrender.com"),
+  baseURL: isLocal
+    ? "http://127.0.0.1:8000"
+    : import.meta.env.VITE_API_BASE_URL ||
+      import.meta.env.VITE_API_URL ||
+      "https://ai-resume-analyzer-backend-xb4l.onrender.com",
   headers: {
     "Content-Type": "application/json",
   },
