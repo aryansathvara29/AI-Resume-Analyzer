@@ -307,8 +307,55 @@ function Dashboard() {
     setShowCodeDropdown(false);
   };
 
+  // Social URL Validation Helper
+  const validateSocialUrl = (url?: string, platform?: "github" | "linkedin" | "leetcode" | "hackerrank" | "portfolio"): string | null => {
+    if (!url || !url.trim()) return null;
+    const lower = url.trim().toLowerCase();
+
+    switch (platform) {
+      case "github":
+        if (!lower.includes("github.com")) {
+          return "Invalid GitHub URL! Must contain 'github.com'";
+        }
+        break;
+      case "linkedin":
+        if (!lower.includes("linkedin.com")) {
+          return "Invalid LinkedIn URL! Must contain 'linkedin.com'";
+        }
+        break;
+      case "leetcode":
+        if (!lower.includes("leetcode.com")) {
+          return "Invalid LeetCode URL! Must contain 'leetcode.com'";
+        }
+        break;
+      case "hackerrank":
+        if (!lower.includes("hackerrank.com")) {
+          return "Invalid HackerRank URL! Must contain 'hackerrank.com'";
+        }
+        break;
+      case "portfolio":
+        if (!lower.includes(".")) {
+          return "Invalid Portfolio URL! Must be a valid web domain";
+        }
+        break;
+    }
+    return null;
+  };
+
   const handleSaveProfile = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    const socialErr =
+      validateSocialUrl(profileForm.github_url, "github") ||
+      validateSocialUrl(profileForm.linkedin_url, "linkedin") ||
+      validateSocialUrl(profileForm.leetcode_url, "leetcode") ||
+      validateSocialUrl(profileForm.hackerrank_url, "hackerrank") ||
+      validateSocialUrl(profileForm.portfolio_url, "portfolio");
+
+    if (socialErr) {
+      setErrorMsg(socialErr);
+      return;
+    }
+
     try {
       setProfileSaving(true);
       setProfileSuccessMsg("");
@@ -1894,7 +1941,7 @@ function Dashboard() {
                     )}
 
                     {/* GitHub Chip */}
-                    {profileForm.github_url && (
+                    {profileForm.github_url && !validateSocialUrl(profileForm.github_url, "github") && (
                       <a
                         href={profileForm.github_url.startsWith("http") ? profileForm.github_url : `https://${profileForm.github_url}`}
                         target="_blank"
@@ -1909,7 +1956,7 @@ function Dashboard() {
                     )}
 
                     {/* LinkedIn Chip */}
-                    {profileForm.linkedin_url && (
+                    {profileForm.linkedin_url && !validateSocialUrl(profileForm.linkedin_url, "linkedin") && (
                       <a
                         href={profileForm.linkedin_url.startsWith("http") ? profileForm.linkedin_url : `https://${profileForm.linkedin_url}`}
                         target="_blank"
@@ -1924,7 +1971,7 @@ function Dashboard() {
                     )}
 
                     {/* Portfolio Chip */}
-                    {profileForm.portfolio_url && (
+                    {profileForm.portfolio_url && !validateSocialUrl(profileForm.portfolio_url, "portfolio") && (
                       <a
                         href={profileForm.portfolio_url.startsWith("http") ? profileForm.portfolio_url : `https://${profileForm.portfolio_url}`}
                         target="_blank"
@@ -1937,7 +1984,7 @@ function Dashboard() {
                     )}
 
                     {/* LeetCode Chip */}
-                    {profileForm.leetcode_url && (
+                    {profileForm.leetcode_url && !validateSocialUrl(profileForm.leetcode_url, "leetcode") && (
                       <a
                         href={profileForm.leetcode_url.startsWith("http") ? profileForm.leetcode_url : `https://${profileForm.leetcode_url}`}
                         target="_blank"
@@ -1950,7 +1997,7 @@ function Dashboard() {
                     )}
 
                     {/* HackerRank Chip */}
-                    {profileForm.hackerrank_url && (
+                    {profileForm.hackerrank_url && !validateSocialUrl(profileForm.hackerrank_url, "hackerrank") && (
                       <a
                         href={profileForm.hackerrank_url.startsWith("http") ? profileForm.hackerrank_url : `https://${profileForm.hackerrank_url}`}
                         target="_blank"
@@ -2572,8 +2619,17 @@ function Dashboard() {
                           value={profileForm.github_url || ""}
                           onChange={handleProfileInputChange}
                           placeholder="https://github.com/username"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          className={`w-full bg-slate-950/80 border rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none transition-all ${
+                            validateSocialUrl(profileForm.github_url, "github")
+                              ? "border-rose-500/80 ring-2 ring-rose-500/20"
+                              : "border-slate-800/90 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                          }`}
                         />
+                        {validateSocialUrl(profileForm.github_url, "github") && (
+                          <p className="text-[11px] font-semibold text-rose-400 mt-1.5 flex items-center gap-1">
+                            <span>⚠️</span> {validateSocialUrl(profileForm.github_url, "github")}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -2584,8 +2640,17 @@ function Dashboard() {
                           value={profileForm.linkedin_url || ""}
                           onChange={handleProfileInputChange}
                           placeholder="https://linkedin.com/in/username"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          className={`w-full bg-slate-950/80 border rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none transition-all ${
+                            validateSocialUrl(profileForm.linkedin_url, "linkedin")
+                              ? "border-rose-500/80 ring-2 ring-rose-500/20"
+                              : "border-slate-800/90 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                          }`}
                         />
+                        {validateSocialUrl(profileForm.linkedin_url, "linkedin") && (
+                          <p className="text-[11px] font-semibold text-rose-400 mt-1.5 flex items-center gap-1">
+                            <span>⚠️</span> {validateSocialUrl(profileForm.linkedin_url, "linkedin")}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -2596,8 +2661,17 @@ function Dashboard() {
                           value={profileForm.portfolio_url || ""}
                           onChange={handleProfileInputChange}
                           placeholder="https://yourportfolio.com"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          className={`w-full bg-slate-950/80 border rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none transition-all ${
+                            validateSocialUrl(profileForm.portfolio_url, "portfolio")
+                              ? "border-rose-500/80 ring-2 ring-rose-500/20"
+                              : "border-slate-800/90 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                          }`}
                         />
+                        {validateSocialUrl(profileForm.portfolio_url, "portfolio") && (
+                          <p className="text-[11px] font-semibold text-rose-400 mt-1.5 flex items-center gap-1">
+                            <span>⚠️</span> {validateSocialUrl(profileForm.portfolio_url, "portfolio")}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -2608,8 +2682,17 @@ function Dashboard() {
                           value={profileForm.leetcode_url || ""}
                           onChange={handleProfileInputChange}
                           placeholder="https://leetcode.com/u/username"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          className={`w-full bg-slate-950/80 border rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none transition-all ${
+                            validateSocialUrl(profileForm.leetcode_url, "leetcode")
+                              ? "border-rose-500/80 ring-2 ring-rose-500/20"
+                              : "border-slate-800/90 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                          }`}
                         />
+                        {validateSocialUrl(profileForm.leetcode_url, "leetcode") && (
+                          <p className="text-[11px] font-semibold text-rose-400 mt-1.5 flex items-center gap-1">
+                            <span>⚠️</span> {validateSocialUrl(profileForm.leetcode_url, "leetcode")}
+                          </p>
+                        )}
                       </div>
 
                       <div className="md:col-span-2">
@@ -2620,8 +2703,17 @@ function Dashboard() {
                           value={profileForm.hackerrank_url || ""}
                           onChange={handleProfileInputChange}
                           placeholder="https://hackerrank.com/profile/username"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          className={`w-full bg-slate-950/80 border rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none transition-all ${
+                            validateSocialUrl(profileForm.hackerrank_url, "hackerrank")
+                              ? "border-rose-500/80 ring-2 ring-rose-500/20"
+                              : "border-slate-800/90 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                          }`}
                         />
+                        {validateSocialUrl(profileForm.hackerrank_url, "hackerrank") && (
+                          <p className="text-[11px] font-semibold text-rose-400 mt-1.5 flex items-center gap-1">
+                            <span>⚠️</span> {validateSocialUrl(profileForm.hackerrank_url, "hackerrank")}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
