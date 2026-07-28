@@ -1973,18 +1973,6 @@ function Dashboard() {
                 </button>
 
                 <button
-                  onClick={() => setProfileSubTab("skills")}
-                  className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
-                    profileSubTab === "skills"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 font-extrabold"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-                  }`}
-                >
-                  <span className="w-6 h-6 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-xs">🛠</span>
-                  Skills Stack
-                </button>
-
-                <button
                   onClick={() => setProfileSubTab("social")}
                   className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
                     profileSubTab === "social"
@@ -2489,81 +2477,6 @@ function Dashboard() {
                           onChange={handleProfileInputChange}
                           placeholder="Write a brief professional summary about your career goals and technical aspirations..."
                           className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl p-4 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 🛠 4. Skills Panel */}
-                {profileSubTab === "skills" && (
-                  <div className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 animate-fade-in">
-                    <div className="border-b border-slate-800/80 pb-4">
-                      <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
-                        <span className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-sm">🛠</span>
-                        Categorized Skills & Tech Stack
-                      </h3>
-                      <p className="text-xs text-slate-400 mt-1">Programming languages, frameworks, tools, and databases</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Technical Skills</label>
-                        <input
-                          type="text"
-                          name="skills_tech"
-                          value={profileForm.skills_tech || ""}
-                          onChange={handleProfileInputChange}
-                          placeholder="Data Structures, System Design, REST APIs"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Programming Languages</label>
-                        <input
-                          type="text"
-                          name="skills_programming"
-                          value={profileForm.skills_programming || ""}
-                          onChange={handleProfileInputChange}
-                          placeholder="Python, JavaScript, TypeScript, C++, Java"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Frameworks & Libraries</label>
-                        <input
-                          type="text"
-                          name="skills_frameworks"
-                          value={profileForm.skills_frameworks || ""}
-                          onChange={handleProfileInputChange}
-                          placeholder="React, Next.js, Node.js, FastAPI, TailwindCSS"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Databases</label>
-                        <input
-                          type="text"
-                          name="skills_databases"
-                          value={profileForm.skills_databases || ""}
-                          onChange={handleProfileInputChange}
-                          placeholder="PostgreSQL, MongoDB, MySQL, Redis"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Tools & Platforms</label>
-                        <input
-                          type="text"
-                          name="skills_tools"
-                          value={profileForm.skills_tools || ""}
-                          onChange={handleProfileInputChange}
-                          placeholder="Git, Docker, VS Code, Linux, AWS, Vercel"
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                         />
                       </div>
                     </div>
