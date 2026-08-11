@@ -279,6 +279,31 @@ function Dashboard() {
   const [showCodeDropdown, setShowCodeDropdown] = useState(false);
   const [codeSearchQuery, setCodeSearchQuery] = useState("");
 
+  const parseDobParts = (dobStr?: string) => {
+    if (!dobStr || !dobStr.trim()) return { day: "", month: "", year: "" };
+    const clean = dobStr.trim().replace(/\//g, "-");
+    const parts = clean.split("-");
+    if (parts.length !== 3) return { day: "", month: "", year: "" };
+
+    // Format YYYY-MM-DD
+    if (parts[0].length === 4) {
+      return {
+        year: parts[0],
+        month: parts[1].padStart(2, "0"),
+        day: parts[2].padStart(2, "0"),
+      };
+    }
+    // Format DD-MM-YYYY
+    if (parts[2].length === 4) {
+      return {
+        day: parts[0].padStart(2, "0"),
+        month: parts[1].padStart(2, "0"),
+        year: parts[2],
+      };
+    }
+    return { day: "", month: "", year: "" };
+  };
+
   useEffect(() => {
     if (profileForm.phone) {
       const match = profileForm.phone.trim().match(/^(\+\d+)/);
@@ -2312,114 +2337,116 @@ function Dashboard() {
                       </div>
 
                       {/* Birthday Picker (Day / Month / Year Dropdowns) */}
-                      <div className="md:col-span-2 bg-slate-950/50 border border-slate-800/90 rounded-2xl p-4 space-y-2">
-                        <label className="block text-xs font-bold text-slate-300 flex items-center justify-between">
-                          <span className="flex items-center gap-1.5">
-                            <span>🎂</span> Date of Birth (Birthday Picker)
-                          </span>
-                          {profileForm.dob && (
-                            <span className="text-[11px] font-mono font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full">
-                              Selected: {profileForm.dob}
-                            </span>
-                          )}
-                        </label>
+                      {(() => {
+                        const parsedDob = parseDobParts(profileForm.dob);
+                        return (
+                          <div className="md:col-span-2 bg-slate-950/50 border border-slate-800/90 rounded-2xl p-4 space-y-2">
+                            <label className="block text-xs font-bold text-slate-300 flex items-center justify-between">
+                              <span className="flex items-center gap-1.5">
+                                <span>🎂</span> Date of Birth (Birthday Picker)
+                              </span>
+                              {profileForm.dob && (
+                                <span className="text-[11px] font-mono font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full">
+                                  Selected: {profileForm.dob}
+                                </span>
+                              )}
+                            </label>
 
-                        <div className="grid grid-cols-3 gap-3 pt-1">
-                          {/* Day Selector */}
-                          <div>
-                            <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Day</span>
-                            <select
-                              value={profileForm.dob ? profileForm.dob.split("-")[2] || "" : ""}
-                              onChange={(e) => {
-                                const selectedDay = e.target.value;
-                                const parts = profileForm.dob ? profileForm.dob.split("-") : ["2005", "01", "01"];
-                                const yr = parts[0] || "2005";
-                                const mo = parts[1] || "01";
-                                if (selectedDay) {
-                                  setProfileForm({ ...profileForm, dob: `${yr}-${mo}-${selectedDay}` });
-                                }
-                              }}
-                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
-                            >
-                              <option value="">Day</option>
-                              {Array.from({ length: 31 }, (_, i) => {
-                                const dayVal = String(i + 1).padStart(2, "0");
-                                return (
-                                  <option key={dayVal} value={dayVal}>
-                                    {dayVal}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          </div>
+                            <div className="grid grid-cols-3 gap-3 pt-1">
+                              {/* Day Selector */}
+                              <div>
+                                <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Day</span>
+                                <select
+                                  value={parsedDob.day}
+                                  onChange={(e) => {
+                                    const selectedDay = e.target.value;
+                                    const yr = parsedDob.year || "2005";
+                                    const mo = parsedDob.month || "01";
+                                    if (selectedDay) {
+                                      setProfileForm({ ...profileForm, dob: `${yr}-${mo}-${selectedDay}` });
+                                    }
+                                  }}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                                >
+                                  <option value="">Day</option>
+                                  {Array.from({ length: 31 }, (_, i) => {
+                                    const dayVal = String(i + 1).padStart(2, "0");
+                                    return (
+                                      <option key={dayVal} value={dayVal}>
+                                        {dayVal}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </div>
 
-                          {/* Month Selector */}
-                          <div>
-                            <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Month</span>
-                            <select
-                              value={profileForm.dob ? profileForm.dob.split("-")[1] || "" : ""}
-                              onChange={(e) => {
-                                const selectedMonth = e.target.value;
-                                const parts = profileForm.dob ? profileForm.dob.split("-") : ["2005", "01", "01"];
-                                const yr = parts[0] || "2005";
-                                const dy = parts[2] || "01";
-                                if (selectedMonth) {
-                                  setProfileForm({ ...profileForm, dob: `${yr}-${selectedMonth}-${dy}` });
-                                }
-                              }}
-                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
-                            >
-                              <option value="">Month</option>
-                              {[
-                                { num: "01", name: "01 - January" },
-                                { num: "02", name: "02 - February" },
-                                { num: "03", name: "03 - March" },
-                                { num: "04", name: "04 - April" },
-                                { num: "05", name: "05 - May" },
-                                { num: "06", name: "06 - June" },
-                                { num: "07", name: "07 - July" },
-                                { num: "08", name: "08 - August" },
-                                { num: "09", name: "09 - September" },
-                                { num: "10", name: "10 - October" },
-                                { num: "11", name: "11 - November" },
-                                { num: "12", name: "12 - December" },
-                              ].map((m) => (
-                                <option key={m.num} value={m.num}>
-                                  {m.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                              {/* Month Selector */}
+                              <div>
+                                <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Month</span>
+                                <select
+                                  value={parsedDob.month}
+                                  onChange={(e) => {
+                                    const selectedMonth = e.target.value;
+                                    const yr = parsedDob.year || "2005";
+                                    const dy = parsedDob.day || "01";
+                                    if (selectedMonth) {
+                                      setProfileForm({ ...profileForm, dob: `${yr}-${selectedMonth}-${dy}` });
+                                    }
+                                  }}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                                >
+                                  <option value="">Month</option>
+                                  {[
+                                    { num: "01", name: "01 - January" },
+                                    { num: "02", name: "02 - February" },
+                                    { num: "03", name: "03 - March" },
+                                    { num: "04", name: "04 - April" },
+                                    { num: "05", name: "05 - May" },
+                                    { num: "06", name: "06 - June" },
+                                    { num: "07", name: "07 - July" },
+                                    { num: "08", name: "08 - August" },
+                                    { num: "09", name: "09 - September" },
+                                    { num: "10", name: "10 - October" },
+                                    { num: "11", name: "11 - November" },
+                                    { num: "12", name: "12 - December" },
+                                  ].map((m) => (
+                                    <option key={m.num} value={m.num}>
+                                      {m.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
 
-                          {/* Year Selector */}
-                          <div>
-                            <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Year</span>
-                            <select
-                              value={profileForm.dob ? profileForm.dob.split("-")[0] || "" : ""}
-                              onChange={(e) => {
-                                const selectedYear = e.target.value;
-                                const parts = profileForm.dob ? profileForm.dob.split("-") : ["2005", "01", "01"];
-                                const mo = parts[1] || "01";
-                                const dy = parts[2] || "01";
-                                if (selectedYear) {
-                                  setProfileForm({ ...profileForm, dob: `${selectedYear}-${mo}-${dy}` });
-                                }
-                              }}
-                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
-                            >
-                              <option value="">Year</option>
-                              {Array.from({ length: 70 }, (_, i) => {
-                                const yearVal = String(2026 - i);
-                                return (
-                                  <option key={yearVal} value={yearVal}>
-                                    {yearVal}
-                                  </option>
-                                );
-                              })}
-                            </select>
+                              {/* Year Selector */}
+                              <div>
+                                <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Year</span>
+                                <select
+                                  value={parsedDob.year}
+                                  onChange={(e) => {
+                                    const selectedYear = e.target.value;
+                                    const mo = parsedDob.month || "01";
+                                    const dy = parsedDob.day || "01";
+                                    if (selectedYear) {
+                                      setProfileForm({ ...profileForm, dob: `${selectedYear}-${mo}-${dy}` });
+                                    }
+                                  }}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                                >
+                                  <option value="">Year</option>
+                                  {Array.from({ length: 70 }, (_, i) => {
+                                    const yearVal = String(2026 - i);
+                                    return (
+                                      <option key={yearVal} value={yearVal}>
+                                        {yearVal}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-300 mb-2">Gender (Optional)</label>

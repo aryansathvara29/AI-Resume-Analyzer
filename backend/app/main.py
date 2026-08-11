@@ -26,7 +26,7 @@ profile_columns = [
     "current_semester VARCHAR(50)",
     "graduation_year VARCHAR(50)",
     "cgpa VARCHAR(50)",
-    '"current_role" VARCHAR(100)',
+    "current_role VARCHAR(100)",
     "about_me VARCHAR(1000)",
     "experience_years VARCHAR(50)",
     "preferred_role VARCHAR(100)",
@@ -88,6 +88,7 @@ app.include_router(ai_router)
 app.include_router(job_match_router)
 app.include_router(history_router)
 app.include_router(dashboard_router)
+app.include_router(skills_router, prefix="/skills", tags=["skills"])
 app.include_router(skills_router, prefix="/api/v1/skills", tags=["skills"])
 
 # -----------------------
