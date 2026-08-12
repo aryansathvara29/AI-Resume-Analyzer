@@ -91,6 +91,16 @@ app.include_router(dashboard_router)
 app.include_router(skills_router, prefix="/skills", tags=["skills"])
 app.include_router(skills_router, prefix="/api/v1/skills", tags=["skills"])
 
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    print(f"[ERROR] Global uncaught exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Server processing error: {str(exc)}"},
+    )
+
 # -----------------------
 # ROOT ENDPOINT
 # -----------------------
