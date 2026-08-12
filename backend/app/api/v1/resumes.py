@@ -33,22 +33,37 @@ def upload_resume(
 ):
 
     # -------------------------
-    # Validate File
+    # Validate File for Mobile & Desktop
     # -------------------------
-    allowed_extensions = (".pdf", ".docx")
+    original_filename = file.filename or "resume.pdf"
+    clean_filename = original_filename.split("?")[0].strip()
+    ext = os.path.splitext(clean_filename)[1].lower()
 
-    if not file.filename.lower().endswith(allowed_extensions):
+    content_type = (file.content_type or "").lower()
+    is_pdf = "pdf" in content_type or ext == ".pdf"
+    is_docx = (
+        "word" in content_type
+        or "officedocument" in content_type
+        or "msword" in content_type
+        or ext in [".docx", ".doc"]
+    )
+
+    if not (is_pdf or is_docx):
         raise HTTPException(
             status_code=400,
             detail="Only PDF and DOCX files are allowed.",
         )
 
+    # Ensure filename has extension for mobile uploads
+    if not clean_filename.lower().endswith((".pdf", ".docx", ".doc")):
+        clean_filename += ".pdf" if is_pdf else ".docx"
+
     # -------------------------
     # Save File
     # -------------------------
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    filename = f"{timestamp}_{file.filename}"
+    safe_name = clean_filename.replace(" ", "_")
+    filename = f"{timestamp}_{safe_name}"
 
     file_path = os.path.join(UPLOAD_DIR, filename)
 

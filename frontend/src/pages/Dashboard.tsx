@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { CITIES_DATA, type CityItem } from "../utils/citiesData";
@@ -161,6 +161,7 @@ function Dashboard() {
   const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // File upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -639,13 +640,26 @@ function Dashboard() {
   const validateAndSetFile = (selectedFile: File) => {
     setUploadError("");
     setUploadSuccess(false);
-    const validTypes = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-    const fileExt = selectedFile.name.split(".").pop()?.toLowerCase();
 
-    if (!validTypes.includes(selectedFile.type) && fileExt !== "pdf" && fileExt !== "docx") {
+    // Check size limit (5MB)
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      setUploadError("File size exceeds maximum limit of 5 MB.");
+      setFile(null);
+      return;
+    }
+
+    const fileExt = selectedFile.name.split(".").pop()?.toLowerCase();
+    const typeStr = (selectedFile.type || "").toLowerCase();
+
+    const isPdf = typeStr.includes("pdf") || fileExt === "pdf";
+    const isDocx =
+      typeStr.includes("word") ||
+      typeStr.includes("officedocument") ||
+      typeStr.includes("msword") ||
+      fileExt === "docx" ||
+      fileExt === "doc";
+
+    if (!isPdf && !isDocx) {
       setUploadError("Only PDF and DOCX files are allowed.");
       setFile(null);
       return;
@@ -664,7 +678,7 @@ function Dashboard() {
     setUploadSuccess(false);
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", file, file.name || "resume.pdf");
 
     try {
       const response = await api.post("/resumes/upload", formData, {
@@ -683,8 +697,12 @@ function Dashboard() {
       fetchData();
     } catch (err: any) {
       console.error("Upload error:", err);
+      let msg = err.response?.data?.detail;
+      if (Array.isArray(msg)) {
+        msg = msg.map((m: any) => m.msg || m).join(", ");
+      }
       setUploadError(
-        err.response?.data?.detail || "Upload failed. Please ensure file matches constraints."
+        msg || err.message || "Upload failed. Please ensure file matches constraints."
       );
     } finally {
       setUploading(false);
@@ -1126,37 +1144,52 @@ function Dashboard() {
                   <h3 className="text-lg font-bold text-white mb-4">Upload File</h3>
 
                   <form onSubmit={handleUploadSubmit} className="space-y-4">
-                    {/* Drag Zone */}
+                    {/* Drag & Touch Select Zone */}
                     <div
+                      onClick={() => fileInputRef.current?.click()}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
-                      className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition-all ${
+                      className={`relative border-2 border-dashed rounded-xl p-6 md:p-8 flex flex-col items-center justify-center transition-all cursor-pointer select-none ${
                         isDragOver
                           ? "border-blue-500 bg-blue-500/5"
                           : "border-slate-800 hover:border-slate-700 bg-slate-950/40"
                       }`}
                     >
                       <input
+                        ref={fileInputRef}
                         type="file"
                         onChange={handleFileChange}
-                        accept=".pdf,.docx"
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                        className="hidden"
                         disabled={uploading}
                       />
 
-                      <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-850 flex items-center justify-center text-slate-400 mb-3">
+                      <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-850 flex items-center justify-center text-blue-400 mb-3 shadow-inner">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
                         </svg>
                       </div>
 
-                      <p className="text-xs font-semibold text-slate-300 text-center">
-                        {file ? file.name : "Drag & Drop Resume"}
+                      <p className="text-xs font-bold text-white text-center">
+                        {file ? file.name : "Tap to Select Resume (or Drag & Drop)"}
                       </p>
-                      <p className="text-[10px] text-slate-500 text-center mt-1">
+                      <p className="text-[10px] text-slate-400 text-center mt-1">
                         PDF or DOCX format (Max 5MB)
                       </p>
+
+                      {!file && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fileInputRef.current?.click();
+                          }}
+                          className="mt-3 px-3.5 py-1.5 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          📁 Select Resume File
+                        </button>
+                      )}
                     </div>
 
                     {uploadError && (
