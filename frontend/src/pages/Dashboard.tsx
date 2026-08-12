@@ -701,9 +701,13 @@ function Dashboard() {
       if (Array.isArray(msg)) {
         msg = msg.map((m: any) => m.msg || m).join(", ");
       }
-      setUploadError(
-        msg || err.message || "Upload failed. Please ensure file matches constraints."
-      );
+      if (err.message === "Network Error" || !err.response) {
+        setUploadError("Backend server is waking up (Render free tier cold start). Please wait 10 seconds and tap 'Start Scan' again.");
+      } else {
+        setUploadError(
+          msg || err.message || "Upload failed. Please ensure file matches constraints."
+        );
+      }
     } finally {
       setUploading(false);
     }

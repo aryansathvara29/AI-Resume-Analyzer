@@ -11,9 +11,7 @@ const api = axios.create({
     : import.meta.env.VITE_API_BASE_URL ||
       import.meta.env.VITE_API_URL ||
       "https://ai-resume-analyzer-backend-xb4l.onrender.com",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  timeout: 90000, // 90 seconds timeout for Render cold starts
 });
 
 // Request interceptor to add authorization token
