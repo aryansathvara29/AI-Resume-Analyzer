@@ -8,7 +8,7 @@ from app.database.session import get_db
 from app.models.resume import Resume
 from app.models.user import User
 from app.schemas.resume import ResumeResponse
-from app.utils.resume_parser import extract_resume_text
+from app.utils.resume_parser import extract_resume_text, validate_resume_document
 from app.services.ats_service import calculate_ats_score
 from app.dependencies.auth import get_current_user, require_role
 
@@ -74,6 +74,21 @@ def upload_resume(
     # Extract Resume Text
     # -------------------------
     extracted_text = extract_resume_text(file_path)
+
+    # -------------------------
+    # Validate Document is standard Resume/CV
+    # -------------------------
+    is_valid_resume, error_reason = validate_resume_document(extracted_text, clean_filename)
+    if not is_valid_resume:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+        raise HTTPException(
+            status_code=400,
+            detail=error_reason,
+        )
 
     # -------------------------
     # Calculate ATS Score
