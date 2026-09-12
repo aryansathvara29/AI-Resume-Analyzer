@@ -574,14 +574,40 @@ function Dashboard() {
     }
   };
 
+  // Select specific resume for Career Roadmap
+  const handleSelectResumeForRoadmap = async (resumeId: number) => {
+    const found = history.find((h) => h.id === resumeId);
+    setCareerRoadmap("");
+    try {
+      const res = await api.get(`/resumes/${resumeId}`);
+      setSelectedResume(res.data);
+    } catch (err) {
+      console.error("Error loading resume details for roadmap:", err);
+      if (found) setSelectedResume(found as any);
+    }
+  };
+
   // Generate career roadmap
-  const generateRoadmap = async () => {
-    const resumeText = selectedResume?.extracted_text || "";
-    if (!resumeText) return;
+  const generateRoadmap = async (targetResumeId?: number) => {
+    const resumeId = targetResumeId || selectedResume?.id || (history.length > 0 ? history[0].id : null);
+    if (!resumeId) return;
 
     setRoadmapLoading(true);
     setCareerRoadmap("");
     try {
+      let currentResume = selectedResume;
+      if (!currentResume || currentResume.id !== resumeId || !currentResume.extracted_text) {
+        const res = await api.get(`/resumes/${resumeId}`);
+        currentResume = res.data;
+        setSelectedResume(res.data);
+      }
+
+      const resumeText = currentResume?.extracted_text || "";
+      if (!resumeText) {
+        setCareerRoadmap("Unable to read resume text. Please ensure the resume file has readable content.");
+        return;
+      }
+
       const res = await api.post("/ai/career-roadmap", {
         resume_text: resumeText,
       });
@@ -591,9 +617,10 @@ function Dashboard() {
       } else {
         setCareerRoadmap("Unable to generate roadmap at this time.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Roadmap error:", err);
-      setCareerRoadmap("Error generating career roadmap. Make sure backend is running with Gemini API key.");
+      const detailMsg = err.response?.data?.detail || err.message;
+      setCareerRoadmap(`Error generating career roadmap: ${detailMsg || "Make sure backend is running with Gemini API key."}`);
     } finally {
       setRoadmapLoading(false);
     }
@@ -1874,62 +1901,166 @@ function Dashboard() {
         {activeTab === "roadmap" && (
           <div className="space-y-8 animate-fade-in">
             <div>
-              <h1 className="text-4xl font-extrabold tracking-tight text-white">
+              <h1 className="text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
                 AI Career Roadmap
+                {history.length > 0 && (
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20">
+                    {history.length} {history.length === 1 ? "Profile" : "Profiles"} Available
+                  </span>
+                )}
               </h1>
               <p className="text-slate-400 mt-1.5 text-sm">
-                Obtain a personalized step-by-step career path outline based on your scanned profile credentials.
+                Choose any of your uploaded resumes to generate a personalized, step-by-step career path outline.
               </p>
             </div>
 
-            {selectedResume ? (
+            {history.length > 0 || selectedResume ? (
               <div className="space-y-6">
-                <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="truncate">
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Scanned Profile</h4>
-                    <p className="text-sm font-bold text-white mt-1 truncate">{selectedResume.file_name}</p>
+                {/* 1. RESUME SELECTOR CARD */}
+                <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3.5">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                        </svg>
+                        Select Resume to Generate Career Roadmap
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Switch between any of your uploaded resumes to map specific milestones.</p>
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      Selected: <span className="text-white font-bold">{selectedResume?.file_name || history[0]?.file_name}</span>
+                    </span>
                   </div>
-                  <button
-                    onClick={generateRoadmap}
-                    disabled={roadmapLoading}
-                    className="rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 px-6 py-3 text-xs font-bold text-white hover:from-blue-500 hover:to-violet-500 transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/10 disabled:opacity-50"
-                  >
-                    {roadmapLoading ? (
-                      <>
-                        <span className="w-3.5 h-3.5 rounded-full border border-white/30 border-t-white animate-spin"></span>
-                        Mapping milestones...
-                      </>
-                    ) : (
-                      "Generate Step-by-Step Path"
-                    )}
-                  </button>
+
+                  {/* Dropdown Selector */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div className="md:col-span-2">
+                      <select
+                        value={selectedResume?.id || (history[0]?.id || "")}
+                        onChange={(e) => handleSelectResumeForRoadmap(Number(e.target.value))}
+                        className="w-full rounded-xl bg-slate-950 border border-slate-700/80 px-4 py-3 text-xs font-semibold text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+                      >
+                        {history.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            📄 {item.file_name} — ATS: {item.ats_score ?? 0}% (Scanned {new Date(item.uploaded_at).toLocaleDateString()})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={() => generateRoadmap()}
+                      disabled={roadmapLoading}
+                      className="w-full rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-6 py-3 text-xs font-bold text-white hover:from-blue-500 hover:to-violet-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-50 cursor-pointer"
+                    >
+                      {roadmapLoading ? (
+                        <>
+                          <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin"></span>
+                          Generating Career Path...
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                          </svg>
+                          Generate Step-by-Step Path
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Quick Profile Cards Grid */}
+                  {history.length > 1 && (
+                    <div className="pt-2">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">All Uploaded Profiles ({history.length}):</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        {history.map((item) => {
+                          const isCurrent = (selectedResume?.id || history[0]?.id) === item.id;
+                          return (
+                            <div
+                              key={item.id}
+                              onClick={() => handleSelectResumeForRoadmap(item.id)}
+                              className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                isCurrent
+                                  ? "bg-blue-600/15 border-blue-500/50 shadow-md shadow-blue-500/10 ring-1 ring-blue-500/40"
+                                  : "bg-slate-950/50 border-slate-800/80 hover:bg-slate-800/40 hover:border-slate-700"
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className={`text-xs font-bold truncate ${isCurrent ? "text-blue-300" : "text-white"}`}>
+                                  {item.file_name}
+                                </p>
+                                <p className="text-[10px] text-slate-500 mt-0.5">
+                                  {new Date(item.uploaded_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  (item.ats_score ?? 0) >= 70
+                                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                    : (item.ats_score ?? 0) >= 40
+                                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                    : "bg-red-500/10 text-red-400 border-red-500/20"
+                                }`}>
+                                  {item.ats_score ?? 0}%
+                                </span>
+                                {isCurrent && (
+                                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
+                {/* 2. LOADING STATE */}
                 {roadmapLoading && (
-                  <div className="rounded-2xl bg-slate-900/40 border border-slate-850 p-20 flex flex-col items-center justify-center space-y-4">
-                    <span className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></span>
-                    <span className="text-xs text-slate-500 font-semibold">Gemini API is drafting your educational/industry career milestones...</span>
+                  <div className="rounded-2xl bg-slate-900/40 border border-slate-850 p-16 flex flex-col items-center justify-center space-y-4">
+                    <span className="w-10 h-10 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></span>
+                    <p className="text-sm font-bold text-white">Mapping Personalized Career Pathway...</p>
+                    <span className="text-xs text-slate-500 font-semibold max-w-md text-center">
+                      Gemini AI is analyzing {selectedResume?.file_name || history[0]?.file_name} to generate tailored milestones, skill upgrades, certifications, and industry projects.
+                    </span>
                   </div>
                 )}
 
+                {/* 3. ROADMAP CONTENT */}
                 {careerRoadmap && !roadmapLoading && (
                   <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6 space-y-6">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-400">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25H5.625A2.25 2.25 0 0 1 3.375 18V6.125c0-.621.504-1.125 1.125-1.125H9.75M8.25 21h8.25" />
-                      </svg>
-                      Career Pathway Blueprint
-                    </h3>
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25H5.625A2.25 2.25 0 0 1 3.375 18V6.125c0-.621.504-1.125 1.125-1.125H9.75M8.25 21h8.25" />
+                        </svg>
+                        Career Pathway Blueprint: <span className="text-blue-400">{selectedResume?.file_name || history[0]?.file_name}</span>
+                      </h3>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(careerRoadmap)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 hover:text-white transition-all cursor-pointer"
+                      >
+                        📋 Copy Blueprint
+                      </button>
+                    </div>
                     <div className="bg-slate-950/70 border border-slate-850/80 rounded-xl p-6 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed font-sans">
                       {careerRoadmap}
                     </div>
                   </div>
                 )}
 
+                {/* 4. READY STATE */}
                 {!careerRoadmap && !roadmapLoading && (
-                  <div className="rounded-2xl bg-slate-900/10 border border-slate-800/40 border-dashed p-20 flex flex-col items-center justify-center text-slate-500 text-center">
-                    <p className="font-semibold text-sm">Ready to Map Career Pathway</p>
-                    <p className="text-xs mt-1 text-slate-650">Click "Generate Step-by-Step Path" above to construct your career roadmap.</p>
+                  <div className="rounded-2xl bg-slate-900/10 border border-slate-800/40 border-dashed p-16 flex flex-col items-center justify-center text-slate-500 text-center">
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                      </svg>
+                    </div>
+                    <p className="font-semibold text-sm text-white">Active Profile: {selectedResume?.file_name || history[0]?.file_name}</p>
+                    <p className="text-xs mt-1 text-slate-400">Click <b>"Generate Step-by-Step Path"</b> above to construct your customized AI Career Roadmap.</p>
                   </div>
                 )}
               </div>
@@ -1940,8 +2071,14 @@ function Dashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                   </svg>
                 </div>
-                <p className="font-bold text-sm text-slate-400">No active profile loaded</p>
+                <p className="font-bold text-sm text-slate-400">No resumes uploaded yet</p>
                 <p className="text-xs text-slate-500 mt-1">Upload a resume in the <b>Upload & Scan</b> section first to get a personalized roadmap.</p>
+                <button
+                  onClick={() => setActiveTab("upload")}
+                  className="mt-4 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/10 cursor-pointer"
+                >
+                  Go to Upload Resume
+                </button>
               </div>
             )}
           </div>
