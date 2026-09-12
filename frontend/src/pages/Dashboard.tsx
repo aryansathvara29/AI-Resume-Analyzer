@@ -1248,7 +1248,7 @@ function Dashboard() {
                       <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Resume Profile</h4>
                       <p className="text-sm font-bold text-white mt-1 truncate">{selectedResume.file_name}</p>
                       <p className="text-[10px] text-slate-500 mt-0.5">
-                        Scanned {new Date(selectedResume.uploaded_at).toLocaleString()}
+                        Scanned {new Date(selectedResume.uploaded_at).toLocaleDateString()}
                       </p>
                     </div>
 
@@ -1530,7 +1530,7 @@ function Dashboard() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-slate-400">
-                            {new Date(item.uploaded_at).toLocaleString()}
+                            {new Date(item.uploaded_at).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -2002,7 +2002,7 @@ function Dashboard() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-slate-400">
-                            {new Date(item.uploaded_at).toLocaleString()}
+                            {new Date(item.uploaded_at).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 text-right space-x-2">
                             <button
