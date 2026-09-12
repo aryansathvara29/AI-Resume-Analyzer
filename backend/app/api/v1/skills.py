@@ -28,14 +28,19 @@ class SubmitTestRequest(BaseModel):
     skill_name: str
     score: int
     total: int = 10
+    resume_id: Optional[int] = None
 
 
 @router.get("/verifications")
 def get_user_skill_verifications(
+    resume_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    records = db.query(SkillVerification).filter(SkillVerification.user_id == current_user.id).all()
+    query = db.query(SkillVerification).filter(SkillVerification.user_id == current_user.id)
+    if resume_id is not None:
+        query = query.filter(SkillVerification.resume_id == resume_id)
+    records = query.all()
     return records
 
 
@@ -93,6 +98,7 @@ def validate_certificate_content(file_path: str, filename: str, skill_name: str)
 @router.post("/verify/certificate")
 async def verify_skill_by_certificate(
     skill_name: str = Form(...),
+    resume_id: Optional[int] = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -139,15 +145,22 @@ async def verify_skill_by_certificate(
             detail=error_reason
         )
 
-    # Upsert verification record
-    record = db.query(SkillVerification).filter(
+    # Upsert verification record scoped by resume_id
+    query = db.query(SkillVerification).filter(
         SkillVerification.user_id == current_user.id,
         SkillVerification.skill_name.ilike(skill_name)
-    ).first()
+    )
+    if resume_id is not None:
+        query = query.filter(SkillVerification.resume_id == resume_id)
+    else:
+        query = query.filter(SkillVerification.resume_id.is_(None))
+
+    record = query.first()
 
     if not record:
         record = SkillVerification(
             user_id=current_user.id,
+            resume_id=resume_id,
             skill_name=skill_name,
             status="verified_certificate",
             certificate_file_name=file.filename,
@@ -158,6 +171,8 @@ async def verify_skill_by_certificate(
         record.status = "verified_certificate"
         record.certificate_file_name = file.filename
         record.certificate_file_path = file_path
+        if resume_id is not None:
+            record.resume_id = resume_id
 
     db.commit()
     db.refresh(record)
@@ -238,15 +253,22 @@ def submit_test(
                 }
             ]
 
-    # Upsert verification record
-    record = db.query(SkillVerification).filter(
+    # Upsert verification record scoped by resume_id
+    query = db.query(SkillVerification).filter(
         SkillVerification.user_id == current_user.id,
         SkillVerification.skill_name.ilike(body.skill_name)
-    ).first()
+    )
+    if body.resume_id is not None:
+        query = query.filter(SkillVerification.resume_id == body.resume_id)
+    else:
+        query = query.filter(SkillVerification.resume_id.is_(None))
+
+    record = query.first()
 
     if not record:
         record = SkillVerification(
             user_id=current_user.id,
+            resume_id=body.resume_id,
             skill_name=body.skill_name,
             status=status_str,
             score=body.score,
@@ -256,6 +278,8 @@ def submit_test(
     else:
         record.status = status_str
         record.score = body.score
+        if body.resume_id is not None:
+            record.resume_id = body.resume_id
         if not passed:
             record.learning_resources = resources
 

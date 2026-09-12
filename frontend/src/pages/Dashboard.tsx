@@ -137,9 +137,11 @@ function Dashboard() {
   const [skillVerifications, setSkillVerifications] = useState<{ [skill: string]: any }>({});
   const [selectedSkillToVerify, setSelectedSkillToVerify] = useState<string | null>(null);
 
-  const fetchSkillVerifications = async () => {
+  const fetchSkillVerifications = async (targetResumeId?: number) => {
     try {
-      const res = await api.get("/skills/verifications");
+      const rId = targetResumeId !== undefined ? targetResumeId : selectedResume?.id;
+      const url = rId ? `/skills/verifications?resume_id=${rId}` : "/skills/verifications";
+      const res = await api.get(url);
       const map: { [skill: string]: any } = {};
       if (Array.isArray(res.data)) {
         res.data.forEach((v: any) => {
@@ -304,6 +306,14 @@ function Dashboard() {
     }
     return { day: "", month: "", year: "" };
   };
+
+  useEffect(() => {
+    if (selectedResume?.id) {
+      fetchSkillVerifications(selectedResume.id);
+    } else {
+      fetchSkillVerifications();
+    }
+  }, [selectedResume?.id]);
 
   useEffect(() => {
     if (profileForm.phone) {
@@ -3069,9 +3079,10 @@ function Dashboard() {
       {selectedSkillToVerify && (
         <SkillVerificationModal
           skillName={selectedSkillToVerify}
+          resumeId={selectedResume?.id}
           onClose={() => setSelectedSkillToVerify(null)}
           onVerificationComplete={() => {
-            fetchSkillVerifications();
+            fetchSkillVerifications(selectedResume?.id);
           }}
         />
       )}

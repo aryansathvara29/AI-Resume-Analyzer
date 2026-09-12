@@ -7,6 +7,7 @@ class SkillVerification(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    resume_id = Column(Integer, ForeignKey("resumes.id", ondelete="CASCADE"), nullable=True, index=True)
     skill_name = Column(String(100), nullable=False, index=True)
     status = Column(String(50), nullable=False, default="not_verified") # verified_certificate, verified_ai_test, learning_recommended, not_verified
     score = Column(Integer, nullable=True) # e.g. 8 for 8/10

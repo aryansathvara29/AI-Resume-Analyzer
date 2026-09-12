@@ -18,12 +18,14 @@ interface Resource {
 
 interface Props {
   skillName: string;
+  resumeId?: number;
   onClose: () => void;
   onVerificationComplete: () => void;
 }
 
 export const SkillVerificationModal: React.FC<Props> = ({
   skillName,
+  resumeId,
   onClose,
   onVerificationComplete,
 }) => {
@@ -86,6 +88,9 @@ export const SkillVerificationModal: React.FC<Props> = ({
       setCertError("");
       const formData = new FormData();
       formData.append("skill_name", skillName);
+      if (resumeId) {
+        formData.append("resume_id", resumeId.toString());
+      }
       formData.append("file", certFile, certFile.name || "certificate.pdf");
 
       await api.post("/skills/verify/certificate", formData);
@@ -159,6 +164,7 @@ export const SkillVerificationModal: React.FC<Props> = ({
 
       const res = await api.post("/skills/submit-test", {
         skill_name: skillName,
+        resume_id: resumeId,
         score: calculatedScore,
         total: questions.length,
       });
