@@ -39,6 +39,43 @@ def get_user_skill_verifications(
     return records
 
 
+def validate_certificate_content(file_path: str, filename: str, skill_name: str) -> tuple[bool, str]:
+    clean_skill = skill_name.strip().lower()
+    clean_filename = filename.strip().lower()
+
+    # Skill synonyms dictionary for broad matching
+    skill_synonyms = {
+        "java": ["java", "j2ee", "spring", "hibernate", "jdk", "oracle java", "java se", "java ee", "core java", "advanced java"],
+        "python": ["python", "py", "django", "flask", "fastapi", "numpy", "pandas", "python3"],
+        "javascript": ["javascript", "js", "ecmascript", "node", "nodejs", "react", "vue", "angular", "typescript", "express"],
+        "react": ["react", "reactjs", "react.js", "frontend", "javascript", "jsx"],
+        "sql": ["sql", "mysql", "postgresql", "postgres", "sqlite", "oracle", "database", "sql server", "queries"],
+        "docker": ["docker", "container", "devops", "kubernetes", "k8s"],
+        "aws": ["aws", "amazon web services", "cloud", "ec2", "s3", "solutions architect"],
+    }
+
+    keywords_to_check = skill_synonyms.get(clean_skill, [clean_skill])
+
+    # 1. Check filename
+    filename_matches = any(kw in clean_filename for kw in keywords_to_check)
+
+    # 2. Extract text if PDF
+    extracted_text = ""
+    if file_path.lower().endswith(".pdf"):
+        try:
+            from app.utils.resume_parser import extract_resume_text
+            extracted_text = extract_resume_text(file_path).lower()
+        except Exception as e:
+            print(f"[WARNING] Certificate text extraction error: {e}")
+
+    text_matches = any(kw in extracted_text for kw in keywords_to_check)
+
+    if not (filename_matches or text_matches):
+        return False, f"Uploaded document does not mention or relate to '{skill_name}'. Please upload a valid certificate for {skill_name}."
+
+    return True, "Certificate validated successfully."
+
+
 @router.post("/verify/certificate")
 async def verify_skill_by_certificate(
     skill_name: str = Form(...),
@@ -74,6 +111,19 @@ async def verify_skill_by_certificate(
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
     with open(file_path, "wb") as f:
         f.write(file_bytes)
+
+    # Validate that certificate text or filename actually pertains to skill_name
+    is_valid_cert, error_reason = validate_certificate_content(file_path, clean_filename, skill_name)
+    if not is_valid_cert:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+        raise HTTPException(
+            status_code=400,
+            detail=error_reason
+        )
 
     # Upsert verification record
     record = db.query(SkillVerification).filter(
