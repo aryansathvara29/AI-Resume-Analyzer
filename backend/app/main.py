@@ -26,7 +26,7 @@ profile_columns = [
     "current_semester VARCHAR(50)",
     "graduation_year VARCHAR(50)",
     "cgpa VARCHAR(50)",
-    "current_role VARCHAR(100)",
+    '"current_role" VARCHAR(100)',
     "about_me VARCHAR(1000)",
     "experience_years VARCHAR(50)",
     "preferred_role VARCHAR(100)",

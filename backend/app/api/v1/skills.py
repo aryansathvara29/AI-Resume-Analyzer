@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.models.user import User
 from app.models.skill_verification import SkillVerification
-from app.core.security import get_current_user
+from app.dependencies.auth import get_current_user
 from app.ai.gemini_service import generate_skill_mcq_test, generate_learning_resources
 
 router = APIRouter()
