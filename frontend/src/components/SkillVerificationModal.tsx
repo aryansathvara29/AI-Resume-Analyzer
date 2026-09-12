@@ -56,8 +56,12 @@ export const SkillVerificationModal: React.FC<Props> = ({
   const handleCertFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      if (!["pdf", "png", "jpg", "jpeg"].includes(ext || "")) {
+      const cleanName = file.name.trim();
+      const ext = cleanName.split(".").pop()?.toLowerCase();
+      const isAllowedExt = ["pdf", "png", "jpg", "jpeg"].includes(ext || "");
+      const isAllowedMime = file.type ? file.type.includes("pdf") || file.type.includes("image") : false;
+
+      if (!isAllowedExt && !isAllowedMime) {
         setCertError("Invalid format! Please upload a PDF, PNG, or JPG file.");
         setCertFile(null);
         return;
@@ -82,17 +86,23 @@ export const SkillVerificationModal: React.FC<Props> = ({
       setCertError("");
       const formData = new FormData();
       formData.append("skill_name", skillName);
-      formData.append("file", certFile);
+      formData.append("file", certFile, certFile.name || "certificate.pdf");
 
-      await api.post("/skills/verify/certificate", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.post("/skills/verify/certificate", formData);
 
       onVerificationComplete();
       onClose();
     } catch (err: any) {
       console.error("Certificate upload error:", err);
-      setCertError(err.response?.data?.detail || "Failed to upload certificate.");
+      let msg = err.response?.data?.detail;
+      if (Array.isArray(msg)) {
+        msg = msg.map((m: any) => m.msg || m).join(", ");
+      }
+      if (err.message === "Network Error" || !err.response) {
+        setCertError("Backend server is waking up (Render cold start). Please try again in 5 seconds.");
+      } else {
+        setCertError(msg || err.message || "Failed to upload certificate.");
+      }
     } finally {
       setCertUploading(false);
     }
@@ -115,7 +125,15 @@ export const SkillVerificationModal: React.FC<Props> = ({
       }
     } catch (err: any) {
       console.error("Error generating test:", err);
-      setGeneralError(err.response?.data?.detail || "Failed to generate AI test.");
+      let msg = err.response?.data?.detail;
+      if (Array.isArray(msg)) {
+        msg = msg.map((m: any) => m.msg || m).join(", ");
+      }
+      if (err.message === "Network Error" || !err.response) {
+        setGeneralError("Backend server is waking up (Render cold start). Please tap 'Take AI Test' again.");
+      } else {
+        setGeneralError(msg || err.message || "Failed to generate AI test.");
+      }
       setStep("choose");
     }
   };

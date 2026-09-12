@@ -46,12 +46,22 @@ async def verify_skill_by_certificate(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in ALLOWED_EXTENSIONS:
+    original_filename = file.filename or f"{skill_name}_certificate.pdf"
+    clean_filename = original_filename.strip()
+    ext = os.path.splitext(clean_filename)[1].lower()
+    content_type = (file.content_type or "").lower()
+
+    is_valid_ext = ext in ALLOWED_EXTENSIONS
+    is_valid_mime = any(m in content_type for m in ["pdf", "image", "png", "jpeg", "jpg"])
+
+    if not (is_valid_ext or is_valid_mime):
         raise HTTPException(
             status_code=400,
             detail="Invalid file format. Only PDF, PNG, JPG, JPEG allowed."
         )
+
+    if not ext:
+        ext = ".pdf" if "pdf" in content_type else ".png"
 
     file_bytes = await file.read()
     if len(file_bytes) > MAX_FILE_SIZE:
