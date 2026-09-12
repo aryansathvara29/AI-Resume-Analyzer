@@ -39,39 +39,53 @@ def get_user_skill_verifications(
     return records
 
 
+import re
+
+
 def validate_certificate_content(file_path: str, filename: str, skill_name: str) -> tuple[bool, str]:
     clean_skill = skill_name.strip().lower()
-    clean_filename = filename.strip().lower()
+    clean_filename = filename.strip()
 
-    # Skill synonyms dictionary for broad matching
-    skill_synonyms = {
+    # Skill keywords dictionary with exact target skill terms
+    skill_keywords = {
         "java": ["java", "j2ee", "spring", "hibernate", "jdk", "oracle java", "java se", "java ee", "core java", "advanced java"],
-        "python": ["python", "py", "django", "flask", "fastapi", "numpy", "pandas", "python3"],
-        "javascript": ["javascript", "js", "ecmascript", "node", "nodejs", "react", "vue", "angular", "typescript", "express"],
-        "react": ["react", "reactjs", "react.js", "frontend", "javascript", "jsx"],
-        "sql": ["sql", "mysql", "postgresql", "postgres", "sqlite", "oracle", "database", "sql server", "queries"],
-        "docker": ["docker", "container", "devops", "kubernetes", "k8s"],
-        "aws": ["aws", "amazon web services", "cloud", "ec2", "s3", "solutions architect"],
+        "python": ["python", "django", "flask", "fastapi", "numpy", "pandas", "python3", "pytest"],
+        "javascript": ["javascript", "ecmascript", "node", "nodejs", "expressjs"],
+        "react": ["react", "reactjs", "react.js", "jsx"],
+        "sql": ["sql", "mysql", "postgresql", "postgres", "sqlite", "oracle sql", "t-sql", "pl/sql"],
+        "docker": ["docker", "containerization", "kubernetes", "k8s", "dockerfile"],
+        "aws": ["aws", "amazon web services", "ec2", "s3", "lambda", "cloudfront"],
     }
 
-    keywords_to_check = skill_synonyms.get(clean_skill, [clean_skill])
+    target_keywords = skill_keywords.get(clean_skill, [clean_skill])
 
-    # 1. Check filename
-    filename_matches = any(kw in clean_filename for kw in keywords_to_check)
+    # Helper function to check exact word boundaries
+    def matches_skill(search_text: str) -> bool:
+        if not search_text:
+            return False
+        for kw in target_keywords:
+            pattern = r'\b' + re.escape(kw) + r'\b'
+            if re.search(pattern, search_text, re.IGNORECASE):
+                return True
+        return False
+
+    # 1. Check filename with exact word boundaries
+    filename_matched = matches_skill(clean_filename)
 
     # 2. Extract text if PDF
     extracted_text = ""
     if file_path.lower().endswith(".pdf"):
         try:
             from app.utils.resume_parser import extract_resume_text
-            extracted_text = extract_resume_text(file_path).lower()
+            extracted_text = extract_resume_text(file_path)
         except Exception as e:
             print(f"[WARNING] Certificate text extraction error: {e}")
 
-    text_matches = any(kw in extracted_text for kw in keywords_to_check)
+    text_matched = matches_skill(extracted_text)
 
-    if not (filename_matches or text_matches):
-        return False, f"Uploaded document does not mention or relate to '{skill_name}'. Please upload a valid certificate for {skill_name}."
+    # Reject if neither filename nor text matches target skill
+    if not (filename_matched or text_matched):
+        return False, f"Verification Failed: Uploaded document does not mention '{skill_name}'. Please upload a valid certificate for {skill_name}."
 
     return True, "Certificate validated successfully."
 
