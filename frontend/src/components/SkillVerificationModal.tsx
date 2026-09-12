@@ -393,9 +393,9 @@ export const SkillVerificationModal: React.FC<Props> = ({
               ) : (
                 <button
                   type="button"
-                  disabled={testSubmitting || selectedAnswers[currentIdx] === undefined}
+                  disabled={testSubmitting}
                   onClick={handleSubmitQuiz}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 text-xs font-extrabold text-white transition-all shadow-lg shadow-emerald-600/30 flex items-center gap-2"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 text-xs font-extrabold text-white transition-all shadow-lg shadow-emerald-600/30 flex items-center gap-2 cursor-pointer"
                 >
                   {testSubmitting ? (
                     <>
@@ -414,21 +414,21 @@ export const SkillVerificationModal: React.FC<Props> = ({
         {/* STEP 4: RESULT SCREEN */}
         {step === "result" && testResult && (
           <div className="space-y-6">
-            {/* PASSING RESULT (Score >= 6) */}
+            {/* PASSING RESULT (Score >= 5) */}
             {testResult.passed ? (
-              <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-2xl p-6 text-center space-y-3 animate-fade-in">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center text-3xl text-emerald-400">
+              <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-6 text-center space-y-4 animate-fade-in">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center text-4xl text-emerald-400 shadow-lg shadow-emerald-500/20">
                   ✅
                 </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Verified by AI Test
+                  <span className="text-xs font-black uppercase tracking-wider px-3.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                    Skill Verified ✅
                   </span>
-                  <h3 className="text-2xl font-black text-white mt-2">
+                  <h3 className="text-3xl font-black text-white mt-3">
                     {testResult.score} / {testResult.total}
                   </h3>
-                  <p className="text-xs text-slate-300 mt-1">
-                    Congratulations! You have successfully verified your proficiency in <strong>{skillName}</strong>.
+                  <p className="text-sm font-semibold text-emerald-300 mt-1.5">
+                    Congratulations! You scored {testResult.score}/10 and verified your proficiency in <strong className="text-white font-bold">{skillName}</strong>.
                   </p>
                 </div>
 
@@ -437,7 +437,7 @@ export const SkillVerificationModal: React.FC<Props> = ({
                   onClick={() => {
                     onClose();
                   }}
-                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all cursor-pointer"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all cursor-pointer shadow-lg shadow-emerald-600/30"
                 >
                   Done & Close
                 </button>

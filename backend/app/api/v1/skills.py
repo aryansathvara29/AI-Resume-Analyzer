@@ -147,7 +147,7 @@ def submit_test(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    passed = body.score >= 6
+    passed = body.score >= 5
     status_str = "verified_ai_test" if passed else "learning_recommended"
     resources = None
 
