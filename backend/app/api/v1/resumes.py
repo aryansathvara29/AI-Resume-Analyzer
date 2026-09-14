@@ -154,20 +154,62 @@ def get_all_resumes_admin(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "recruiter"])),
 ):
+    from app.models.skill_verification import SkillVerification
+    from app.services.ats_service import detect_skills
+
     results = db.query(Resume, User).join(User, Resume.user_id == User.id).order_by(Resume.uploaded_at.desc()).all()
     
+    # Pre-fetch all verified skill records to avoid N+1 queries
+    verifications = db.query(SkillVerification).filter(
+        SkillVerification.status.in_(["verified_certificate", "verified_ai_test"])
+    ).all()
+    
+    verifications_by_resume = {}
+    verifications_by_user = {}
+    for v in verifications:
+        v_data = {
+            "id": v.id,
+            "skill_name": v.skill_name,
+            "status": v.status,
+            "score": v.score
+        }
+        if v.resume_id:
+            verifications_by_resume.setdefault(v.resume_id, []).append(v_data)
+        verifications_by_user.setdefault(v.user_id, []).append(v_data)
+
     data = []
     for resume, user in results:
+        detected = detect_skills(resume.extracted_text or "")
+        
+        # Pick resume-scoped verifications if present, otherwise user-level
+        verified = verifications_by_resume.get(resume.id)
+        if verified is None:
+            verified = verifications_by_user.get(user.id, [])
+
         data.append({
             "id": resume.id,
             "user_id": resume.user_id,
             "candidate_name": user.full_name,
             "candidate_email": user.email,
+            "candidate_phone": user.phone or "",
+            "candidate_city": user.city or "",
+            "candidate_state": user.state or "",
+            "candidate_college": user.college or "",
+            "candidate_degree": user.degree or "",
+            "candidate_branch": user.branch or "",
+            "candidate_experience": user.experience_years or "Fresher",
+            "candidate_role": user.preferred_role or user.current_role or "",
+            "candidate_about": user.about_me or "",
+            "github_url": user.github_url or "",
+            "linkedin_url": user.linkedin_url or "",
+            "portfolio_url": user.portfolio_url or "",
             "file_name": resume.file_name,
             "file_path": resume.file_path,
-            "ats_score": resume.ats_score,
+            "ats_score": resume.ats_score or 0,
             "uploaded_at": resume.uploaded_at,
-            "extracted_text": resume.extracted_text
+            "extracted_text": resume.extracted_text or "",
+            "detected_skills": detected,
+            "verified_skills": verified,
         })
     return data
 

@@ -1,9 +1,146 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { CITIES_DATA, type CityItem } from "../utils/citiesData";
 import { COUNTRY_CODES, type CountryCodeItem } from "../utils/countryCodes";
 import { SkillVerificationModal } from "../components/SkillVerificationModal";
+
+// -------------------------------------------------------------
+// Recruiter Presets & Priority Match Scoring Helper
+// -------------------------------------------------------------
+export const RECRUITER_PRESET_ROLES = [
+  {
+    title: "Full Stack Developer",
+    icon: "🚀",
+    skills: ["react", "node.js", "python", "fastapi", "sql", "git"],
+  },
+  {
+    title: "Python Backend Developer",
+    icon: "🐍",
+    skills: ["python", "fastapi", "django", "postgresql", "docker", "rest api"],
+  },
+  {
+    title: "Frontend Specialist",
+    icon: "⚛️",
+    skills: ["react", "typescript", "javascript", "html", "css", "tailwind"],
+  },
+  {
+    title: "AI / ML Engineer",
+    icon: "🤖",
+    skills: ["python", "machine learning", "deep learning", "nlp", "tensorflow", "pytorch", "gemini"],
+  },
+  {
+    title: "Cloud & DevOps Architect",
+    icon: "☁️",
+    skills: ["docker", "kubernetes", "aws", "linux", "git", "ci/cd"],
+  },
+  {
+    title: "Java Enterprise Developer",
+    icon: "☕",
+    skills: ["java", "spring", "spring boot", "mysql", "rest api"],
+  },
+  {
+    title: "Data Scientist / Analyst",
+    icon: "📊",
+    skills: ["python", "sql", "pandas", "numpy", "machine learning", "mysql"],
+  },
+];
+
+export const computeCandidateMatch = (c: any, targetRole: string, targetSkills: string[]) => {
+  const text = (
+    (c.extracted_text || "") + " " +
+    (c.candidate_role || "") + " " +
+    (c.candidate_about || "") + " " +
+    (c.file_name || "")
+  ).toLowerCase();
+
+  const candidateSkills = (c.detected_skills || []).map((s: string) => s.toLowerCase());
+  const verifiedList = c.verified_skills || [];
+
+  // Determine effective skills to match against
+  let skillsToMatch = targetSkills.map((s) => s.toLowerCase().trim()).filter(Boolean);
+  if (skillsToMatch.length === 0 && targetRole.trim()) {
+    const matchedPreset = RECRUITER_PRESET_ROLES.find(
+      (r) => r.title.toLowerCase() === targetRole.toLowerCase()
+    );
+    if (matchedPreset) {
+      skillsToMatch = matchedPreset.skills;
+    } else {
+      skillsToMatch = targetRole
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !["the", "and", "for", "with", "developer", "engineer"].includes(w));
+    }
+  }
+
+  let matchedSkills: string[] = [];
+  let missingSkills: string[] = [];
+  let skillMatchRatio = 0;
+
+  if (skillsToMatch.length > 0) {
+    matchedSkills = skillsToMatch.filter((sk) => {
+      return (
+        candidateSkills.some((cs: string) => cs.includes(sk) || sk.includes(cs)) ||
+        text.includes(sk)
+      );
+    });
+    missingSkills = skillsToMatch.filter((sk) => !matchedSkills.includes(sk));
+    skillMatchRatio = matchedSkills.length / skillsToMatch.length;
+  } else {
+    skillMatchRatio = Math.min(1, (candidateSkills.length * 10) / 100);
+    matchedSkills = candidateSkills;
+  }
+
+  // Verification priority boost (Certificates & Passed AI Tests)
+  let verifiedBoost = 0;
+  const verifiedMatching = verifiedList.filter((v: any) =>
+    skillsToMatch.length > 0
+      ? skillsToMatch.some((sk) => (v.skill_name || "").toLowerCase().includes(sk))
+      : true
+  );
+  if (verifiedMatching.length > 0) {
+    verifiedBoost = Math.min(25, verifiedMatching.length * 12);
+  } else if (verifiedList.length > 0) {
+    verifiedBoost = 10;
+  }
+
+  // Role title alignment boost
+  let roleTitleBoost = 0;
+  if (
+    targetRole.trim() &&
+    (
+      (c.candidate_role || "").toLowerCase().includes(targetRole.toLowerCase()) ||
+      (c.file_name || "").toLowerCase().includes(targetRole.toLowerCase())
+    )
+  ) {
+    roleTitleBoost = 10;
+  }
+
+  // Overall ATS weight
+  const atsWeight = ((c.ats_score || 0) * 0.2);
+
+  let score = Math.round(skillMatchRatio * 55 + verifiedBoost + roleTitleBoost + atsWeight);
+  score = Math.max(15, Math.min(99, score));
+
+  if (skillsToMatch.length > 0 && matchedSkills.length === skillsToMatch.length && verifiedMatching.length > 0) {
+    score = 100;
+  }
+
+  let tier: "top" | "high" | "moderate" | "partial" = "partial";
+  if (score >= 85) tier = "top";
+  else if (score >= 70) tier = "high";
+  else if (score >= 50) tier = "moderate";
+
+  return {
+    score,
+    tier,
+    matchedSkills,
+    missingSkills,
+    verifiedCount: verifiedList.length,
+    verifiedList,
+    verifiedMatchingCount: verifiedMatching.length,
+  };
+};
 
 interface User {
   id: number;
@@ -116,9 +253,142 @@ function Dashboard() {
   const [careerRoadmap, setCareerRoadmap] = useState("");
   const [roadmapLoading, setRoadmapLoading] = useState(false);
 
-  // Recruiter Console states
+  // Recruiter Talent Hub states
   const [recruiterResumes, setRecruiterResumes] = useState<any[]>([]);
   const [recruiterLoading, setRecruiterLoading] = useState(false);
+  const [recruiterSubTab, setRecruiterSubTab] = useState<"search" | "shortlist" | "analytics">("search");
+  const [searchRole, setSearchRole] = useState<string>("Full Stack Developer");
+  const [searchSkills, setSearchSkills] = useState<string[]>(["react", "node.js", "sql"]);
+  const [customSkillInput, setCustomSkillInput] = useState<string>("");
+  const [minAtsFilter, setMinAtsFilter] = useState<number>(0);
+  const [verifiedOnlyFilter, setVerifiedOnlyFilter] = useState<boolean>(false);
+  const [experienceFilter, setExperienceFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>("");
+  const [recruiterSortBy, setRecruiterSortBy] = useState<"priority" | "ats" | "verified" | "newest">("priority");
+  const [recruiterViewMode, setRecruiterViewMode] = useState<"grid" | "table">("grid");
+  const [shortlistedMap, setShortlistedMap] = useState<{ [id: number]: { status: string; date: string } }>(() => {
+    try {
+      const saved = localStorage.getItem("recruiter_shortlist");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [dossierCandidate, setDossierCandidate] = useState<any | null>(null);
+
+  const toggleShortlist = (candidateId: number) => {
+    setShortlistedMap((prev) => {
+      const next = { ...prev };
+      if (next[candidateId]) {
+        delete next[candidateId];
+      } else {
+        next[candidateId] = {
+          status: "Shortlisted",
+          date: new Date().toISOString(),
+        };
+      }
+      try {
+        localStorage.setItem("recruiter_shortlist", JSON.stringify(next));
+      } catch (e) {
+        console.error("Failed to save shortlist", e);
+      }
+      return next;
+    });
+  };
+
+  const updateCandidateStatus = (candidateId: number, status: string) => {
+    setShortlistedMap((prev) => {
+      const next = {
+        ...prev,
+        [candidateId]: {
+          status,
+          date: prev[candidateId]?.date || new Date().toISOString(),
+        },
+      };
+      try {
+        localStorage.setItem("recruiter_shortlist", JSON.stringify(next));
+      } catch (e) {
+        console.error("Failed to save shortlist", e);
+      }
+      return next;
+    });
+  };
+
+  const exportShortlistReport = () => {
+    const list = recruiterResumes.filter((c) => shortlistedMap[c.id]);
+    if (list.length === 0) {
+      alert("No candidates in your shortlist yet.");
+      return;
+    }
+
+    let csvContent = "Candidate Name,Email,Phone,City,Experience,Target Role,ATS Score,Status,Verified Skills\n";
+    list.forEach((c) => {
+      const status = shortlistedMap[c.id]?.status || "Shortlisted";
+      const verified = (c.verified_skills || []).map((v: any) => v.skill_name).join("; ");
+      csvContent += `"${c.candidate_name || ''}","${c.candidate_email || ''}","${c.candidate_phone || ''}","${c.candidate_city || ''}","${c.candidate_experience || ''}","${c.candidate_role || ''}","${c.ats_score || 0}%","${status}","${verified}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Shortlisted_Candidates_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Filtered & Ranked Candidates
+  const filteredCandidates = useMemo(() => {
+    return recruiterResumes
+      .map((candidate) => {
+        const match = computeCandidateMatch(candidate, searchRole, searchSkills);
+        return { ...candidate, match };
+      })
+      .filter((candidate) => {
+        if (minAtsFilter > 0 && (candidate.ats_score || 0) < minAtsFilter) return false;
+        if (verifiedOnlyFilter && candidate.match.verifiedCount === 0) return false;
+        if (experienceFilter !== "all") {
+          const expStr = (candidate.candidate_experience || "").toLowerCase();
+          if (experienceFilter === "fresher" && !expStr.includes("fresh") && !expStr.includes("0")) {
+            return false;
+          } else if (experienceFilter === "1-2" && !expStr.includes("1") && !expStr.includes("2")) {
+            return false;
+          } else if (experienceFilter === "3+" && !expStr.includes("3") && !expStr.includes("4") && !expStr.includes("5")) {
+            return false;
+          }
+        }
+        if (locationFilter.trim()) {
+          const cityStr = (candidate.candidate_city || "").toLowerCase();
+          if (!cityStr.includes(locationFilter.toLowerCase().trim())) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (recruiterSortBy === "priority") {
+          return b.match.score - a.match.score;
+        }
+        if (recruiterSortBy === "ats") {
+          return (b.ats_score || 0) - (a.ats_score || 0);
+        }
+        if (recruiterSortBy === "verified") {
+          return b.match.verifiedCount - a.match.verifiedCount;
+        }
+        if (recruiterSortBy === "newest") {
+          return new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime();
+        }
+        return 0;
+      });
+  }, [
+    recruiterResumes,
+    searchRole,
+    searchSkills,
+    minAtsFilter,
+    verifiedOnlyFilter,
+    experienceFilter,
+    locationFilter,
+    recruiterSortBy,
+  ]);
 
   // Profile & Settings states
   const [profileForm, setProfileForm] = useState<any>({});
@@ -196,6 +466,9 @@ function Dashboard() {
       }
 
       if (userRes.data.role === "admin" || userRes.data.role === "recruiter") {
+        if (userRes.data.role === "recruiter") {
+          setActiveTab("recruiter");
+        }
         try {
           setRecruiterLoading(true);
           const recruiterRes = await api.get("/resumes/admin/all");
@@ -854,132 +1127,215 @@ function Dashboard() {
 
           {/* Navigation link actions */}
           <nav className="space-y-1">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === "overview"
-                  ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-              </svg>
-              Overview
-            </button>
+            {user?.role === "recruiter" ? (
+              <>
+                <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-blue-400/80">
+                  Recruiter Workspace
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveTab("recruiter");
+                    setRecruiterSubTab("search");
+                  }}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "recruiter" && recruiterSubTab === "search"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                  </svg>
+                  Talent Discovery
+                </button>
 
-            <button
-              onClick={() => setActiveTab("upload")}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === "upload"
-                  ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
-              </svg>
-              Upload & Scan
-            </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("recruiter");
+                    setRecruiterSubTab("shortlist");
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "recruiter" && recruiterSubTab === "shortlist"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+                    </svg>
+                    Shortlisted
+                  </div>
+                  {Object.keys(shortlistedMap).length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      {Object.keys(shortlistedMap).length}
+                    </span>
+                  )}
+                </button>
 
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === "history"
-                  ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
-              </svg>
-              History Logs
-            </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("recruiter");
+                    setRecruiterSubTab("analytics");
+                  }}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "recruiter" && recruiterSubTab === "analytics"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                  </svg>
+                  Talent Analytics
+                </button>
 
-            <button
-              onClick={() => setActiveTab("job-match")}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === "job-match"
-                  ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-              </svg>
-              Job Matcher
-            </button>
+                <div className="pt-2 pb-1 border-t border-slate-800/60 my-2"></div>
 
-            <button
-              onClick={() => setActiveTab("chatbot")}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === "chatbot"
-                  ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" />
-              </svg>
-              AI Chatbot
-            </button>
+                <button
+                  onClick={() => setActiveTab("profile")}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "profile"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                  </svg>
+                  Recruiter Profile
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setActiveTab("overview")}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "overview"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                  </svg>
+                  Overview
+                </button>
 
-            <button
-              onClick={() => setActiveTab("interview")}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === "interview"
-                  ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.9c2.785 0 5.5-.233 8.15-.666a60.443 60.443 0 0 0-.49-6.347m-15.4 0A48.667 48.667 0 0 0 1.5 10.143L12 3.75l10.5 6.393a48.667 48.667 0 0 0-3.66 3.65m-14.58 0C3.903 12.35 4.59 10.3 5.26 10.147m13.48 0c.67.153 1.356 2.203 1.58 3.65m-15.06 0a49.08 49.08 0 0 1 15.06 0M12 14.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" />
-              </svg>
-              Mock Interview
-            </button>
+                <button
+                  onClick={() => setActiveTab("upload")}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "upload"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+                  </svg>
+                  Upload & Scan
+                </button>
 
-            <button
-              onClick={() => setActiveTab("roadmap")}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === "roadmap"
-                  ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8m-3-12.75v12.75M3 12h18M6.75 19.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Z" />
-              </svg>
-              Career Roadmap
-            </button>
+                <button
+                  onClick={() => setActiveTab("history")}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "history"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                  </svg>
+                  History Logs
+                </button>
 
-            <button
-              onClick={() => setActiveTab("profile")}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === "profile"
-                  ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-              </svg>
-              Profile & Settings
-            </button>
+                <button
+                  onClick={() => setActiveTab("job-match")}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "job-match"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                  </svg>
+                  Job Matcher
+                </button>
 
-            {(user?.role === "admin" || user?.role === "recruiter") && (
-              <button
-                onClick={() => setActiveTab("recruiter")}
-                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                  activeTab === "recruiter"
-                    ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
-                </svg>
-                Recruiter Console
-              </button>
+                <button
+                  onClick={() => setActiveTab("chatbot")}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "chatbot"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" />
+                  </svg>
+                  AI Chatbot
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("interview")}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "interview"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.9c2.785 0 5.5-.233 8.15-.666a60.443 60.443 0 0 0-.49-6.347m-15.4 0A48.667 48.667 0 0 0 1.5 10.143L12 3.75l10.5 6.393a48.667 48.667 0 0 0-3.66 3.65m-14.58 0C3.903 12.35 4.59 10.3 5.26 10.147m13.48 0c.67.153 1.356 2.203 1.58 3.65m-15.06 0a49.08 49.08 0 0 1 15.06 0M12 14.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" />
+                  </svg>
+                  Mock Interview
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("roadmap")}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "roadmap"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8m-3-12.75v12.75M3 12h18M6.75 19.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Z" />
+                  </svg>
+                  Career Roadmap
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("profile")}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === "profile"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                  </svg>
+                  Profile & Settings
+                </button>
+
+                {user?.role === "admin" && (
+                  <button
+                    onClick={() => setActiveTab("recruiter")}
+                    className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                      activeTab === "recruiter"
+                        ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                    </svg>
+                    Recruiter Console
+                  </button>
+                )}
+              </>
             )}
           </nav>
         </div>
@@ -2084,100 +2440,1008 @@ function Dashboard() {
           </div>
         )}
 
-        {/* 8. RECRUITER CONSOLE TAB */}
+        {/* 8. RECRUITER TALENT HUB */}
         {activeTab === "recruiter" && (user?.role === "admin" || user?.role === "recruiter") && (
           <div className="space-y-8 animate-fade-in">
-            <div>
-              <h1 className="text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
-                Recruiter Console
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20 uppercase tracking-wide">
-                  {user.role} View
-                </span>
-              </h1>
-              <p className="text-slate-400 mt-1.5 text-sm">
-                Audit all resumes submitted globally, monitor ATS scores, and extract full evaluation logs.
-              </p>
+            {/* Header with Sub-Tabs */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-slate-800/80">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+                    Recruiter Talent Hub
+                  </h1>
+                  <span className="text-[11px] px-3 py-1 rounded-full bg-gradient-to-r from-blue-500/20 to-violet-500/20 text-blue-300 font-bold border border-blue-500/30 uppercase tracking-wider">
+                    {user?.role} Portal
+                  </span>
+                </div>
+                <p className="text-slate-400 mt-1 text-sm">
+                  Smart candidate sourcing: Search by job role, filter by verified skills, and review priority-matched talent.
+                </p>
+              </div>
+
+              {/* Sub-Tabs Selector */}
+              <div className="flex items-center gap-2 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+                <button
+                  onClick={() => setRecruiterSubTab("search")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                    recruiterSubTab === "search"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/20"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                  </svg>
+                  Talent Discovery ({filteredCandidates.length})
+                </button>
+
+                <button
+                  onClick={() => setRecruiterSubTab("shortlist")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                    recruiterSubTab === "shortlist"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/20"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+                  </svg>
+                  Shortlisted ({Object.keys(shortlistedMap).length})
+                </button>
+
+                <button
+                  onClick={() => setRecruiterSubTab("analytics")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                    recruiterSubTab === "analytics"
+                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-md shadow-blue-500/20"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                  </svg>
+                  Pool Analytics
+                </button>
+              </div>
             </div>
 
-            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 overflow-hidden">
-              {recruiterLoading ? (
-                <div className="py-20 flex flex-col items-center justify-center space-y-4">
-                  <span className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></span>
-                  <span className="text-xs text-slate-500 font-semibold">Loading candidate profiles...</span>
-                </div>
-              ) : recruiterResumes.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-800 text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-950/40">
-                        <th className="px-6 py-4.5">Candidate</th>
-                        <th className="px-6 py-4.5">File Name</th>
-                        <th className="px-6 py-4.5">ATS Score</th>
-                        <th className="px-6 py-4.5">Scan Date</th>
-                        <th className="px-6 py-4.5 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 text-slate-300 text-xs font-medium">
-                      {recruiterResumes.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-800/35 transition-all">
-                          <td className="px-6 py-4">
-                            <div className="font-semibold text-white">{item.candidate_name}</div>
-                            <div className="text-[10px] text-slate-500">{item.candidate_email}</div>
-                          </td>
-                          <td className="px-6 py-4 truncate max-w-xs font-semibold text-white">
-                            {item.file_name}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold border ${
-                              (item.ats_score ?? 0) >= 70
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                : (item.ats_score ?? 0) >= 40
-                                ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                : "bg-red-500/10 text-red-400 border-red-500/20"
-                            }`}>
-                              {item.ats_score ?? 0}%
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-slate-400">
-                            {new Date(item.uploaded_at).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 text-right space-x-2">
-                            <button
-                              onClick={() => loadResumeDetails(item.id)}
-                              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-[10px] font-bold text-white transition-all shadow-md shadow-blue-500/5 inline-flex items-center gap-1"
-                            >
-                              Inspect
-                            </button>
-                            <button
-                              onClick={() => handleExportReport(item.id, item.file_name)}
-                              className="px-3 py-1.5 rounded-lg border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-all inline-flex items-center gap-1"
-                            >
-                              Export
-                            </button>
-                            <button
-                              onClick={() => handleDeleteResume(item.id)}
-                              className="px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-[10px] font-bold text-red-400 transition-all inline-flex items-center gap-1"
-                              title="Delete Candidate Resume"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="py-20 flex flex-col items-center justify-center text-slate-500 space-y-3.5">
-                  <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-850 flex items-center justify-center text-slate-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.109A11.978 11.978 0 0 1 12 20.25a11.978 11.978 0 0 1-3-1.013V19.12c0-1.113.285-2.16.786-3.07M7.5 19.128a9.38 9.38 0 0 1-2.625.372 9.337 9.337 0 0 1-4.121-.952 4.125 4.125 0 0 1 7.533-2.493M13.5 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
-                    </svg>
+            {/* SUBTAB 1: TALENT DISCOVERY */}
+            {recruiterSubTab === "search" && (
+              <div className="space-y-6">
+                {/* Search & Preset Roles Card */}
+                <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950 border border-slate-800 shadow-xl space-y-5">
+                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                    <div className="flex-1 w-full">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                        Target Job Role Sourcing
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={searchRole}
+                          onChange={(e) => setSearchRole(e.target.value)}
+                          placeholder="e.g. Full Stack Developer, Python Engineer, Java Developer..."
+                          className="w-full pl-11 pr-4 py-3 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white text-sm focus:outline-none focus:border-blue-500 transition-all shadow-inner"
+                        />
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-blue-400 absolute left-3.5 top-3.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div className="w-full md:w-auto">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                        Add Required Skill Tag
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={customSkillInput}
+                          onChange={(e) => setCustomSkillInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && customSkillInput.trim()) {
+                              const s = customSkillInput.trim().toLowerCase();
+                              if (!searchSkills.includes(s)) {
+                                setSearchSkills([...searchSkills, s]);
+                              }
+                              setCustomSkillInput("");
+                            }
+                          }}
+                          placeholder="e.g. spring boot, aws, docker"
+                          className="px-3.5 py-3 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white text-sm focus:outline-none focus:border-blue-500 transition-all text-xs"
+                        />
+                        <button
+                          onClick={() => {
+                            if (customSkillInput.trim()) {
+                              const s = customSkillInput.trim().toLowerCase();
+                              if (!searchSkills.includes(s)) {
+                                setSearchSkills([...searchSkills, s]);
+                              }
+                              setCustomSkillInput("");
+                            }
+                          }}
+                          className="px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/10"
+                        >
+                          + Add
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400 font-semibold italic">No global scan histories found.</p>
+
+                  {/* Preset Role Quick-Buttons */}
+                  <div>
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                      Popular Roles Preset
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {RECRUITER_PRESET_ROLES.map((preset) => {
+                        const isSelected = searchRole.toLowerCase() === preset.title.toLowerCase();
+                        return (
+                          <button
+                            key={preset.title}
+                            onClick={() => {
+                              setSearchRole(preset.title);
+                              setSearchSkills(preset.skills);
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                              isSelected
+                                ? "bg-blue-600/30 border-blue-500 text-blue-300 shadow-sm shadow-blue-500/20"
+                                : "bg-slate-950/40 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/60"
+                            }`}
+                          >
+                            <span className="mr-1">{preset.icon}</span>
+                            {preset.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Active Skill Tags */}
+                  <div>
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        Active Required Skills ({searchSkills.length})
+                      </div>
+                      {searchSkills.length > 0 && (
+                        <button
+                          onClick={() => setSearchSkills([])}
+                          className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                        >
+                          Clear all skills
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {searchSkills.length === 0 ? (
+                        <span className="text-xs text-slate-500 italic">No specific skills required. Showing general pool.</span>
+                      ) : (
+                        searchSkills.map((sk) => (
+                          <span
+                            key={sk}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-bold"
+                          >
+                            {sk}
+                            <button
+                              onClick={() => setSearchSkills(searchSkills.filter((s) => s !== sk))}
+                              className="hover:text-red-300 transition-colors ml-0.5 text-slate-400 hover:text-white"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {/* Sourcing Toolbar: Filters & Sorting */}
+                <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  {/* Left Filters */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {/* Min ATS Filter */}
+                    <div className="flex items-center gap-1 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-semibold">Min ATS:</span>
+                      <select
+                        value={minAtsFilter}
+                        onChange={(e) => setMinAtsFilter(Number(e.target.value))}
+                        className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                      >
+                        <option value={0} className="bg-slate-900">Any ATS</option>
+                        <option value={50} className="bg-slate-900">50%+</option>
+                        <option value={70} className="bg-slate-900">70%+ (High)</option>
+                        <option value={80} className="bg-slate-900">80%+ (Top Tier)</option>
+                      </select>
+                    </div>
+
+                    {/* Verified Only Filter */}
+                    <button
+                      onClick={() => setVerifiedOnlyFilter(!verifiedOnlyFilter)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${
+                        verifiedOnlyFilter
+                          ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-sm shadow-emerald-500/10"
+                          : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                        <path fillRule="evenodd" d="M16.403 12.652a3 3 0 0 0 0-5.304 3 3 0 0 0-3.75-3.751 3 3 0 0 0-5.305 0 3 3 0 0 0-3.751 3.75 3 3 0 0 0 0 5.305 3 3 0 0 0 3.75 3.751 3 3 0 0 0 5.305 0 3 3 0 0 0 3.751-3.75Zm-2.546-4.46a.75.75 0 0 0-1.214-.883l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
+                      </svg>
+                      Verified Skills Only
+                    </button>
+
+                    {/* Experience Filter */}
+                    <div className="flex items-center gap-1 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-semibold">Exp:</span>
+                      <select
+                        value={experienceFilter}
+                        onChange={(e) => setExperienceFilter(e.target.value)}
+                        className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                      >
+                        <option value="all" className="bg-slate-900">All Experience</option>
+                        <option value="fresher" className="bg-slate-900">Freshers (0 Yrs)</option>
+                        <option value="1-2" className="bg-slate-900">1 - 2 Years</option>
+                        <option value="3+" className="bg-slate-900">3+ Years</option>
+                      </select>
+                    </div>
+
+                    {/* Location input */}
+                    <input
+                      type="text"
+                      value={locationFilter}
+                      onChange={(e) => setLocationFilter(e.target.value)}
+                      placeholder="Filter by city..."
+                      className="bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-32 md:w-36"
+                    />
+                  </div>
+
+                  {/* Right Sorting & View Mode */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-semibold">Sort By:</span>
+                      <select
+                        value={recruiterSortBy}
+                        onChange={(e: any) => setRecruiterSortBy(e.target.value)}
+                        className="bg-transparent text-blue-400 font-bold focus:outline-none cursor-pointer"
+                      >
+                        <option value="priority" className="bg-slate-900">Priority Match (Smart)</option>
+                        <option value="ats" className="bg-slate-900">ATS Score</option>
+                        <option value="verified" className="bg-slate-900">Verified Skills Count</option>
+                        <option value="newest" className="bg-slate-900">Newest Upload</option>
+                      </select>
+                    </div>
+
+                    {/* View mode toggle */}
+                    <div className="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+                      <button
+                        onClick={() => setRecruiterViewMode("grid")}
+                        className={`p-1.5 rounded-lg transition-all ${
+                          recruiterViewMode === "grid" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+                        }`}
+                        title="Grid Cards"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setRecruiterViewMode("table")}
+                        className={`p-1.5 rounded-lg transition-all ${
+                          recruiterViewMode === "table" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+                        }`}
+                        title="Dense Table"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Candidate Results Render */}
+                {recruiterLoading ? (
+                  <div className="py-24 flex flex-col items-center justify-center space-y-4 rounded-2xl bg-slate-900/40 border border-slate-800">
+                    <span className="w-9 h-9 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></span>
+                    <span className="text-xs text-slate-400 font-semibold">Indexing talent pool & ranking candidate profiles...</span>
+                  </div>
+                ) : filteredCandidates.length === 0 ? (
+                  <div className="py-20 flex flex-col items-center justify-center text-slate-500 space-y-3 rounded-2xl bg-slate-900/40 border border-slate-800">
+                    <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-bold text-slate-300">No candidates match your current search filters</p>
+                    <p className="text-xs text-slate-500">Try adjusting required skills, lowering min ATS, or relaxing the verified only toggle.</p>
+                  </div>
+                ) : recruiterViewMode === "grid" ? (
+                  /* GRID CARDS VIEW */
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {filteredCandidates.map((candidate) => {
+                      const match = candidate.match;
+                      const isShortlisted = !!shortlistedMap[candidate.id];
+
+                      return (
+                        <div
+                          key={candidate.id}
+                          className={`rounded-2xl border transition-all duration-200 flex flex-col justify-between overflow-hidden relative group hover:border-slate-700 bg-slate-900/70 backdrop-blur-md shadow-lg ${
+                            match.tier === "top"
+                              ? "border-emerald-500/40 hover:shadow-emerald-500/5"
+                              : match.tier === "high"
+                              ? "border-blue-500/30 hover:shadow-blue-500/5"
+                              : "border-slate-800"
+                          }`}
+                        >
+                          {/* Priority Ribbon / Header */}
+                          <div className="p-5 pb-3">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              {/* Match Circle & Tier */}
+                              <div className="flex items-center gap-3">
+                                <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-extrabold border shadow-inner ${
+                                  match.tier === "top"
+                                    ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
+                                    : match.tier === "high"
+                                    ? "bg-blue-500/10 border-blue-500/40 text-blue-400"
+                                    : match.tier === "moderate"
+                                    ? "bg-amber-500/10 border-amber-500/40 text-amber-400"
+                                    : "bg-slate-800 border-slate-700 text-slate-400"
+                                }`}>
+                                  <span className="text-lg leading-tight">{match.score}%</span>
+                                  <span className="text-[8px] uppercase tracking-tighter opacity-80">Match</span>
+                                </div>
+
+                                <div>
+                                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${
+                                    match.tier === "top"
+                                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                                      : match.tier === "high"
+                                      ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                                      : match.tier === "moderate"
+                                      ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                                      : "bg-slate-800 text-slate-400 border-slate-700"
+                                  }`}>
+                                    {match.tier === "top" ? "★ Top Priority" : match.tier === "high" ? "High Match" : match.tier === "moderate" ? "Moderate Match" : "Partial Fit"}
+                                  </span>
+                                  <h3 className="text-base font-extrabold text-white mt-1 group-hover:text-blue-400 transition-colors">
+                                    {candidate.candidate_name || "Anonymous Candidate"}
+                                  </h3>
+                                  <p className="text-xs text-slate-400">{candidate.candidate_email}</p>
+                                </div>
+                              </div>
+
+                              {/* Bookmark / Shortlist button */}
+                              <button
+                                onClick={() => toggleShortlist(candidate.id)}
+                                className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                                  isShortlisted
+                                    ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20"
+                                    : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
+                                }`}
+                                title={isShortlisted ? "Remove from Shortlist" : "Add to Shortlist"}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={isShortlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* Candidate Meta Info */}
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80 mb-3">
+                              <div>
+                                <span className="text-slate-500 block text-[10px]">Experience:</span>
+                                <span className="font-semibold text-slate-200">{candidate.candidate_experience || "Fresher"}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block text-[10px]">Location:</span>
+                                <span className="font-semibold text-slate-200 truncate block">
+                                  {candidate.candidate_city ? `${candidate.candidate_city}, ${candidate.candidate_state || 'IN'}` : "Not specified"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block text-[10px]">Education:</span>
+                                <span className="font-semibold text-slate-200 truncate block">
+                                  {candidate.candidate_degree ? `${candidate.candidate_degree} (${candidate.candidate_branch || ''})` : "Graduated"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block text-[10px]">ATS Score:</span>
+                                <span className={`font-bold ${
+                                  (candidate.ats_score ?? 0) >= 70 ? "text-emerald-400" : (candidate.ats_score ?? 0) >= 50 ? "text-amber-400" : "text-red-400"
+                                }`}>
+                                  {candidate.ats_score ?? 0}%
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Verified Skills Section */}
+                            <div className="mb-3">
+                              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-emerald-400">
+                                  <path fillRule="evenodd" d="M16.403 12.652a3 3 0 0 0 0-5.304 3 3 0 0 0-3.75-3.751 3 3 0 0 0-5.305 0 3 3 0 0 0-3.751 3.75 3 3 0 0 0 0 5.305 3 3 0 0 0 3.75 3.751 3 3 0 0 0 5.305 0 3 3 0 0 0 3.751-3.75Zm-2.546-4.46a.75.75 0 0 0-1.214-.883l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
+                                </svg>
+                                Verified Credentials ({match.verifiedCount})
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {match.verifiedList.length > 0 ? (
+                                  match.verifiedList.map((v: any, idx: number) => (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold"
+                                    >
+                                      ✓ {v.skill_name}
+                                      {v.score ? ` (${v.score}/10)` : " (Cert)"}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-[11px] text-slate-500 italic">No certificates or AI test proofs attached yet</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Matched Required Skills */}
+                            {searchSkills.length > 0 && (
+                              <div className="mb-2">
+                                <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5">
+                                  Role Skill Fit ({match.matchedSkills.length}/{searchSkills.length})
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {match.matchedSkills.map((sk: string) => (
+                                    <span key={sk} className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 text-[10px] font-semibold">
+                                      ✓ {sk}
+                                    </span>
+                                  ))}
+                                  {match.missingSkills.map((sk: string) => (
+                                    <span key={sk} className="px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 text-[10px] line-through decoration-slate-600">
+                                      {sk}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Footer */}
+                          <div className="p-3 bg-slate-950/60 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                            <button
+                              onClick={() => setDossierCandidate(candidate)}
+                              className="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                              </svg>
+                              Inspect Dossier
+                            </button>
+
+                            <button
+                              onClick={() => handleExportReport(candidate.id, candidate.file_name)}
+                              className="py-2 px-3 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                              title="Export Evaluation Report"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                              PDF
+                            </button>
+
+                            {candidate.candidate_email && (
+                              <a
+                                href={`mailto:${candidate.candidate_email}?subject=Job Opportunity: ${encodeURIComponent(searchRole)}&body=Hi ${encodeURIComponent(candidate.candidate_name || 'Candidate')},%0D%0A%0D%0AWe reviewed your profile and resume on our AI Talent Hub for the ${encodeURIComponent(searchRole)} position and would love to connect with you.`}
+                                className="py-2 px-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                title="Send Email Inquiry"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                                </svg>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* TABLE VIEW */
+                  <div className="rounded-2xl bg-slate-900/60 border border-slate-800 overflow-hidden shadow-xl">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-950/70">
+                            <th className="px-5 py-4">Priority Fit</th>
+                            <th className="px-5 py-4">Candidate</th>
+                            <th className="px-5 py-4">Exp & Location</th>
+                            <th className="px-5 py-4">Verified Skills</th>
+                            <th className="px-5 py-4">ATS Score</th>
+                            <th className="px-5 py-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/80 text-slate-300 text-xs font-medium">
+                          {filteredCandidates.map((candidate) => {
+                            const match = candidate.match;
+                            const isShortlisted = !!shortlistedMap[candidate.id];
+
+                            return (
+                              <tr key={candidate.id} className="hover:bg-slate-800/40 transition-colors">
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className={`w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-sm border ${
+                                      match.tier === "top"
+                                        ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
+                                        : match.tier === "high"
+                                        ? "bg-blue-500/10 border-blue-500/40 text-blue-400"
+                                        : "bg-slate-800 border-slate-700 text-slate-400"
+                                    }`}>
+                                      {match.score}%
+                                    </span>
+                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                      match.tier === "top"
+                                        ? "bg-emerald-500/20 text-emerald-300"
+                                        : match.tier === "high"
+                                        ? "bg-blue-500/20 text-blue-300"
+                                        : "bg-slate-800 text-slate-400"
+                                    }`}>
+                                      {match.tier}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-4">
+                                  <div className="font-bold text-white text-sm">{candidate.candidate_name || "Candidate"}</div>
+                                  <div className="text-[11px] text-slate-500">{candidate.candidate_email}</div>
+                                </td>
+
+                                <td className="px-5 py-4">
+                                  <div className="font-semibold text-slate-200">{candidate.candidate_experience || "Fresher"}</div>
+                                  <div className="text-[11px] text-slate-500">{candidate.candidate_city || "India"}</div>
+                                </td>
+
+                                <td className="px-5 py-4 max-w-xs">
+                                  <div className="flex flex-wrap gap-1">
+                                    {match.verifiedList.length > 0 ? (
+                                      match.verifiedList.slice(0, 3).map((v: any, idx: number) => (
+                                        <span key={idx} className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                                          ✓ {v.skill_name}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="text-[11px] text-slate-500 italic">None verified</span>
+                                    )}
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-4">
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-xs border ${
+                                    (candidate.ats_score ?? 0) >= 70
+                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                      : (candidate.ats_score ?? 0) >= 50
+                                      ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                      : "bg-red-500/10 text-red-400 border-red-500/20"
+                                  }`}>
+                                    {candidate.ats_score ?? 0}%
+                                  </span>
+                                </td>
+
+                                <td className="px-5 py-4 text-right space-x-2">
+                                  <button
+                                    onClick={() => toggleShortlist(candidate.id)}
+                                    className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                                      isShortlisted
+                                        ? "bg-blue-600 text-white border-blue-500"
+                                        : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                    }`}
+                                  >
+                                    {isShortlisted ? "Shortlisted" : "+ Shortlist"}
+                                  </button>
+
+                                  <button
+                                    onClick={() => setDossierCandidate(candidate)}
+                                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md"
+                                  >
+                                    Inspect
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleExportReport(candidate.id, candidate.file_name)}
+                                    className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all"
+                                  >
+                                    PDF
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SUBTAB 2: SHORTLIST MANAGEMENT */}
+            {recruiterSubTab === "shortlist" && (
+              <div className="space-y-6">
+                <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-black text-white">Shortlisted Candidates Pipeline</h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Manage recruitment stages, track progress, and export shortlisted talent data to CSV.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={exportShortlistReport}
+                      disabled={Object.keys(shortlistedMap).length === 0}
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/10 disabled:opacity-50 transition-all cursor-pointer"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      Export Shortlist CSV
+                    </button>
+                  </div>
+                </div>
+
+                {Object.keys(shortlistedMap).length === 0 ? (
+                  <div className="py-20 flex flex-col items-center justify-center text-slate-500 space-y-3 rounded-2xl bg-slate-900/40 border border-slate-800">
+                    <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-bold text-slate-300">No candidates shortlisted yet</p>
+                    <p className="text-xs text-slate-500">Go back to Talent Discovery and click "+ Shortlist" on candidates to track them here.</p>
+                    <button
+                      onClick={() => setRecruiterSubTab("search")}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all"
+                    >
+                      Find Candidates
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-slate-900/60 border border-slate-800 overflow-hidden shadow-xl">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-950/70">
+                            <th className="px-5 py-4">Candidate</th>
+                            <th className="px-5 py-4">Contact</th>
+                            <th className="px-5 py-4">Current Stage</th>
+                            <th className="px-5 py-4">Verified Skills</th>
+                            <th className="px-5 py-4">Shortlisted Date</th>
+                            <th className="px-5 py-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/80 text-slate-300 text-xs font-medium">
+                          {recruiterResumes
+                            .filter((c) => shortlistedMap[c.id])
+                            .map((candidate) => {
+                              const itemState = shortlistedMap[candidate.id];
+                              const verifiedList = candidate.verified_skills || [];
+
+                              return (
+                                <tr key={candidate.id} className="hover:bg-slate-800/40 transition-colors">
+                                  <td className="px-5 py-4">
+                                    <div className="font-bold text-white text-sm">{candidate.candidate_name || "Candidate"}</div>
+                                    <div className="text-[11px] text-blue-400 font-semibold">{candidate.candidate_role || "Applicant"}</div>
+                                  </td>
+
+                                  <td className="px-5 py-4">
+                                    <div className="text-slate-200">{candidate.candidate_email}</div>
+                                    <div className="text-[11px] text-slate-500">{candidate.candidate_phone || "No phone"}</div>
+                                  </td>
+
+                                  <td className="px-5 py-4">
+                                    <select
+                                      value={itemState.status || "Shortlisted"}
+                                      onChange={(e) => updateCandidateStatus(candidate.id, e.target.value)}
+                                      className="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-700 text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
+                                    >
+                                      <option value="Shortlisted">Shortlisted</option>
+                                      <option value="Phone Screen">Phone Screen</option>
+                                      <option value="Interview Scheduled">Interview Scheduled</option>
+                                      <option value="Technical Round">Technical Round</option>
+                                      <option value="Offer Extended">Offer Extended</option>
+                                      <option value="Rejected">Rejected</option>
+                                    </select>
+                                  </td>
+
+                                  <td className="px-5 py-4">
+                                    <div className="flex flex-wrap gap-1">
+                                      {verifiedList.length > 0 ? (
+                                        verifiedList.slice(0, 3).map((v: any, idx: number) => (
+                                          <span key={idx} className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                                            ✓ {v.skill_name}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="text-[11px] text-slate-500 italic">None</span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  <td className="px-5 py-4 text-slate-400">
+                                    {new Date(itemState.date).toLocaleDateString()}
+                                  </td>
+
+                                  <td className="px-5 py-4 text-right space-x-2">
+                                    <button
+                                      onClick={() => setDossierCandidate(candidate)}
+                                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all"
+                                    >
+                                      Inspect
+                                    </button>
+                                    <button
+                                      onClick={() => toggleShortlist(candidate.id)}
+                                      className="px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all"
+                                      title="Remove from shortlist"
+                                    >
+                                      Remove
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SUBTAB 3: TALENT POOL ANALYTICS */}
+            {recruiterSubTab === "analytics" && (
+              <div className="space-y-6">
+                {/* Metric Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Talent In Pool</span>
+                    <div className="text-3xl font-black text-white mt-1">{recruiterResumes.length}</div>
+                    <span className="text-[11px] text-emerald-400 font-semibold mt-1 block">Globally indexed resumes</span>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Average ATS Score</span>
+                    <div className="text-3xl font-black text-blue-400 mt-1">
+                      {recruiterResumes.length > 0
+                        ? Math.round(recruiterResumes.reduce((acc, c) => acc + (c.ats_score || 0), 0) / recruiterResumes.length)
+                        : 0}%
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Structural compliance index</span>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Verified Credentials</span>
+                    <div className="text-3xl font-black text-emerald-400 mt-1">
+                      {recruiterResumes.filter((c) => (c.verified_skills || []).length > 0).length}
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-semibold mt-1 block">
+                      {recruiterResumes.length > 0
+                        ? Math.round((recruiterResumes.filter((c) => (c.verified_skills || []).length > 0).length / recruiterResumes.length) * 100)
+                        : 0}% of talent verified
+                    </span>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Shortlisted Pipeline</span>
+                    <div className="text-3xl font-black text-violet-400 mt-1">
+                      {Object.keys(shortlistedMap).length}
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Candidates under active review</span>
+                  </div>
+                </div>
+
+                {/* Skills Distribution in Talent Pool */}
+                <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4">
+                  <h3 className="text-base font-extrabold text-white">Top Technical Skills In Talent Pool</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      "python", "javascript", "react", "node.js", "java", "sql", "docker", "aws", "typescript", "git"
+                    ].map((sk) => {
+                      const count = recruiterResumes.filter((c) => {
+                        const skills = (c.detected_skills || []).map((s: string) => s.toLowerCase());
+                        const text = (c.extracted_text || "").toLowerCase();
+                        return skills.includes(sk) || text.includes(sk);
+                      }).length;
+                      const percent = recruiterResumes.length > 0 ? Math.round((count / recruiterResumes.length) * 100) : 0;
+
+                      return (
+                        <div key={sk} className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-bold">
+                            <span className="text-slate-300 capitalize">{sk}</span>
+                            <span className="text-blue-400">{count} candidates ({percent}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-violet-500 h-full rounded-full transition-all duration-500"
+                              style={{ width: `${percent}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CANDIDATE DOSSIER MODAL */}
+            {dossierCandidate && (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-scale-up">
+                  {/* Modal Header */}
+                  <div className="p-6 bg-slate-950/70 border-b border-slate-800 flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-violet-600 flex items-center justify-center text-xl font-black text-white shadow-lg shadow-blue-500/20">
+                        {dossierCandidate.candidate_name?.charAt(0)?.toUpperCase() || "C"}
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-extrabold text-white">{dossierCandidate.candidate_name || "Candidate Profile"}</h2>
+                        <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                          <span>{dossierCandidate.candidate_email}</span>
+                          <span>•</span>
+                          <span>{dossierCandidate.candidate_phone || "No phone"}</span>
+                          <span>•</span>
+                          <span>{dossierCandidate.candidate_city ? `${dossierCandidate.candidate_city}, ${dossierCandidate.candidate_state || 'IN'}` : "Location not provided"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleShortlist(dossierCandidate.id)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                          shortlistedMap[dossierCandidate.id]
+                            ? "bg-blue-600 text-white border-blue-500"
+                            : "bg-slate-950 border-slate-800 text-slate-300 hover:text-white"
+                        }`}
+                      >
+                        {shortlistedMap[dossierCandidate.id] ? "✓ Shortlisted" : "+ Add to Shortlist"}
+                      </button>
+                      <button
+                        onClick={() => setDossierCandidate(null)}
+                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+                    {/* Role Match Overview Banner */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-950/40 via-violet-950/30 to-slate-950 border border-blue-800/40 flex flex-wrap items-center justify-between gap-4">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Target Role Match</span>
+                        <div className="text-lg font-extrabold text-white mt-0.5">
+                          {searchRole} Fit: {dossierCandidate.match?.score || computeCandidateMatch(dossierCandidate, searchRole, searchSkills).score}%
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 block font-semibold">ATS Score</span>
+                          <span className="text-sm font-black text-emerald-400">{dossierCandidate.ats_score || 0}%</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 block font-semibold">Verified Skills</span>
+                          <span className="text-sm font-black text-blue-400">{(dossierCandidate.verified_skills || []).length}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Candidate Details Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800 space-y-2">
+                        <h4 className="font-extrabold text-white text-xs uppercase tracking-wider">Education & Background</h4>
+                        <p className="text-slate-300"><b>College:</b> {dossierCandidate.candidate_college || "Not specified"}</p>
+                        <p className="text-slate-300"><b>Degree:</b> {dossierCandidate.candidate_degree || "Not specified"} ({dossierCandidate.candidate_branch || "Branch"})</p>
+                        <p className="text-slate-300"><b>Experience:</b> {dossierCandidate.candidate_experience || "Fresher"}</p>
+                        <p className="text-slate-300"><b>Preferred Role:</b> {dossierCandidate.candidate_role || "Software Engineer"}</p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800 space-y-2">
+                        <h4 className="font-extrabold text-white text-xs uppercase tracking-wider">Social & Portfolios</h4>
+                        {dossierCandidate.candidate_github ? (
+                          <p className="text-blue-400 truncate">
+                            <a href={dossierCandidate.candidate_github.startsWith("http") ? dossierCandidate.candidate_github : `https://${dossierCandidate.candidate_github}`} target="_blank" rel="noreferrer" className="underline">
+                              GitHub: {dossierCandidate.candidate_github}
+                            </a>
+                          </p>
+                        ) : <p className="text-slate-500">GitHub: Not provided</p>}
+                        {dossierCandidate.candidate_linkedin ? (
+                          <p className="text-blue-400 truncate">
+                            <a href={dossierCandidate.candidate_linkedin.startsWith("http") ? dossierCandidate.candidate_linkedin : `https://${dossierCandidate.candidate_linkedin}`} target="_blank" rel="noreferrer" className="underline">
+                              LinkedIn: {dossierCandidate.candidate_linkedin}
+                            </a>
+                          </p>
+                        ) : <p className="text-slate-500">LinkedIn: Not provided</p>}
+                        {dossierCandidate.candidate_portfolio ? (
+                          <p className="text-blue-400 truncate">
+                            <a href={dossierCandidate.candidate_portfolio.startsWith("http") ? dossierCandidate.candidate_portfolio : `https://${dossierCandidate.candidate_portfolio}`} target="_blank" rel="noreferrer" className="underline">
+                              Portfolio: {dossierCandidate.candidate_portfolio}
+                            </a>
+                          </p>
+                        ) : <p className="text-slate-500">Portfolio: Not provided</p>}
+                      </div>
+                    </div>
+
+                    {/* Verified Credentials Proofs */}
+                    <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800 space-y-3">
+                      <h4 className="font-extrabold text-white text-xs uppercase tracking-wider flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-emerald-400">
+                          <path fillRule="evenodd" d="M16.403 12.652a3 3 0 0 0 0-5.304 3 3 0 0 0-3.75-3.751 3 3 0 0 0-5.305 0 3 3 0 0 0-3.751 3.75 3 3 0 0 0 0 5.305 3 3 0 0 0 3.75 3.751 3 3 0 0 0 5.305 0 3 3 0 0 0 3.751-3.75Zm-2.546-4.46a.75.75 0 0 0-1.214-.883l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
+                        </svg>
+                        Skill Verification & Certificate Proofs
+                      </h4>
+                      {(dossierCandidate.verified_skills || []).length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {(dossierCandidate.verified_skills || []).map((v: any, idx: number) => (
+                            <div key={idx} className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                              <div className="font-bold text-emerald-300 text-xs flex items-center justify-between">
+                                <span>{v.skill_name}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20">Verified</span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 mt-1">
+                                Method: {v.verification_type === "certificate" ? "Certificate Upload" : "AI Assessment Test"}
+                              </div>
+                              {v.score && <div className="text-[10px] text-emerald-400 font-bold">Score: {v.score}/10</div>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-slate-500 italic">No certificates or verified tests uploaded for this candidate.</p>
+                      )}
+                    </div>
+
+                    {/* Extracted Resume Text Box */}
+                    <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-extrabold text-white text-xs uppercase tracking-wider">
+                          Extracted Resume Content ({dossierCandidate.file_name})
+                        </h4>
+                        <button
+                          onClick={() => handleExportReport(dossierCandidate.id, dossierCandidate.file_name)}
+                          className="text-blue-400 hover:text-blue-300 underline font-bold"
+                        >
+                          Download Full PDF
+                        </button>
+                      </div>
+                      <div className="p-3 rounded-xl bg-slate-900 border border-slate-800/80 max-h-56 overflow-y-auto font-mono text-[11px] text-slate-300 whitespace-pre-wrap">
+                        {dossierCandidate.extracted_text || "No text available."}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="p-4 bg-slate-950/80 border-t border-slate-800 flex items-center justify-between">
+                    <button
+                      onClick={() => setDossierCandidate(null)}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold"
+                    >
+                      Close Dossier
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      {dossierCandidate.candidate_email && (
+                        <a
+                          href={`mailto:${dossierCandidate.candidate_email}?subject=Interview Invitation: ${encodeURIComponent(searchRole)}&body=Dear ${encodeURIComponent(dossierCandidate.candidate_name || 'Candidate')},%0D%0A%0D%0AWe are impressed by your qualifications for the ${encodeURIComponent(searchRole)} role and would like to schedule a conversation with you.`}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                          </svg>
+                          Contact Candidate
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
