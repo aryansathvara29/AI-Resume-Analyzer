@@ -420,7 +420,7 @@ export const SkillVerificationModal: React.FC<Props> = ({
         {/* STEP 4: RESULT SCREEN */}
         {step === "result" && testResult && (
           <div className="space-y-6">
-            {/* PASSING RESULT (Score >= 5) */}
+            {/* PASSING RESULT (Score >= 70%) */}
             {testResult.passed ? (
               <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-6 text-center space-y-4 animate-fade-in">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center text-4xl text-emerald-400 shadow-lg shadow-emerald-500/20">
@@ -428,13 +428,13 @@ export const SkillVerificationModal: React.FC<Props> = ({
                 </div>
                 <div>
                   <span className="text-xs font-black uppercase tracking-wider px-3.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                    Skill Verified ✅
+                    Skill Verified (70%+ Achieved) ✅
                   </span>
                   <h3 className="text-3xl font-black text-white mt-3">
-                    {testResult.score} / {testResult.total}
+                    {testResult.score} / {testResult.total} ({Math.round((testResult.score / Math.max(testResult.total, 1)) * 100)}%)
                   </h3>
                   <p className="text-sm font-semibold text-emerald-300 mt-1.5">
-                    Congratulations! You scored {testResult.score}/10 and verified your proficiency in <strong className="text-white font-bold">{skillName}</strong>.
+                    Congratulations! You scored 70% or above and officially verified your proficiency in <strong className="text-white font-bold">{skillName}</strong>.
                   </p>
                 </div>
 
@@ -449,17 +449,17 @@ export const SkillVerificationModal: React.FC<Props> = ({
                 </button>
               </div>
             ) : (
-              /* FAILING RESULT (Score < 6) */
+              /* FAILING RESULT (Score < 70%) */
               <div className="space-y-5 animate-fade-in">
                 <div className="bg-rose-950/30 border border-rose-500/30 rounded-2xl p-5 text-center space-y-2">
                   <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                    Learning Recommended
+                    Learning Recommended (&lt; 70%)
                   </span>
                   <h3 className="text-2xl font-black text-rose-400 mt-1">
-                    {testResult.score} / {testResult.total}
+                    {testResult.score} / {testResult.total} ({Math.round((testResult.score / Math.max(testResult.total, 1)) * 100)}%)
                   </h3>
                   <p className="text-xs font-semibold text-rose-300 max-w-md mx-auto leading-relaxed">
-                    This skill could not be verified. We recommend improving your knowledge before keeping it in your resume.
+                    A minimum of 70% is required to verify this skill. We recommend improving your knowledge using the resources below.
                   </p>
                 </div>
 

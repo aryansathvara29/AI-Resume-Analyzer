@@ -188,17 +188,52 @@ Step 4: Target Companies & Job Roles:
 # -----------------------------
 # Skill Test MCQ Generator
 # -----------------------------
-def generate_skill_mcq_test(skill_name: str):
+def generate_skill_mcq_test(skill_name: str, num_questions: int = 3):
+    count = max(num_questions, 3)
     prompt = f"""
 You are an expert Technical Interviewer.
-Generate 10 multiple-choice questions (MCQs) to evaluate a candidate's proficiency in '{skill_name}'.
-The questions should cover practical, interview-level topics.
+Generate {count} multiple-choice questions (MCQs) to evaluate a candidate's proficiency in '{skill_name}'.
+The questions should cover practical, interview-level topics and include at least {count} high-quality questions.
 
-Return ONLY a valid JSON array of 10 objects without any codeblocks or commentary.
+Return ONLY a valid JSON array of {count} objects without any codeblocks or commentary.
 Format:
 [
   {{
     "id": 1,
+    "skill": "{skill_name}",
+    "question": "Question text here?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_index": 0
+  }}
+]
+"""
+    response = model.generate_content(prompt)
+    text = response.text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    if text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
+
+
+def generate_multi_skill_mcq_test(skills: list[str], min_per_skill: int = 3):
+    count_per_skill = max(min_per_skill, 3)
+    skills_joined = ", ".join(skills)
+    prompt = f"""
+You are an expert Technical Interviewer.
+Generate multiple-choice questions (MCQs) to evaluate a candidate across these skills: {skills_joined}.
+Requirements:
+1. Generate AT LEAST {count_per_skill} questions for EACH skill in the list.
+2. The questions must test practical knowledge.
+
+Return ONLY a valid JSON array of objects without any codeblocks or commentary.
+Format:
+[
+  {{
+    "id": 1,
+    "skill": "SkillName",
     "question": "Question text here?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_index": 0
