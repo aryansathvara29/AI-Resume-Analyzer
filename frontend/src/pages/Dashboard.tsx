@@ -226,8 +226,6 @@ function Dashboard() {
   const [selectedResume, setSelectedResume] = useState<ResumeDetail | null>(null);
 
   // Tools & Analysis states
-  const [aiAnalysis, setAiAnalysis] = useState<string>("");
-  const [aiLoading, setAiLoading] = useState<boolean>(false);
   const [jobDescription, setJobDescription] = useState<string>("");
   const [jobMatchResult, setJobMatchResult] = useState<string>("");
   const [matchLoading, setMatchLoading] = useState<boolean>(false);
@@ -739,7 +737,6 @@ function Dashboard() {
       setErrorMsg("");
       const res = await api.get(`/resumes/${resumeId}`);
       setSelectedResume(res.data);
-      setAiAnalysis("");
       setJobMatchResult("");
       setActiveTab("upload"); // switch to analysis view
     } catch (err: any) {
@@ -747,7 +744,6 @@ function Dashboard() {
       const foundInHistory = history.find((item: any) => item.id === resumeId) || recruiterResumes.find((c: any) => c.id === resumeId);
       if (foundInHistory) {
         setSelectedResume(foundInHistory);
-        setAiAnalysis("");
         setJobMatchResult("");
         setActiveTab("upload");
       } else {
@@ -1000,7 +996,6 @@ function Dashboard() {
       setSelectedResume(response.data);
       setUploadSuccess(true);
       setFile(null);
-      setAiAnalysis("");
       setJobMatchResult("");
       
       // Update statistics and history list
@@ -1020,29 +1015,6 @@ function Dashboard() {
       }
     } finally {
       setUploading(false);
-    }
-  };
-
-  // Gemini AI Analysis
-  const runGeminiAnalysis = async () => {
-    if (!selectedResume || !selectedResume.extracted_text) return;
-
-    setAiLoading(true);
-    setAiAnalysis("");
-    try {
-      const res = await api.post("/ai/analyze", {
-        resume_text: selectedResume.extracted_text,
-      });
-      if (res.data.success) {
-        setAiAnalysis(res.data.analysis);
-      } else {
-        setAiAnalysis("Unable to retrieve AI analysis. Please try again.");
-      }
-    } catch (err: any) {
-      console.error("Gemini analysis error:", err);
-      setAiAnalysis("Error generating AI analysis. Ensure GEMINI_API_KEY is configured in backend env.");
-    } finally {
-      setAiLoading(false);
     }
   };
 
@@ -1811,25 +1783,16 @@ function Dashboard() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={runGeminiAnalysis}
-                          disabled={aiLoading}
-                          className="flex-1 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 py-2 text-xs font-bold text-white hover:from-blue-500 hover:to-violet-500 transition-all flex items-center justify-center gap-1 shadow-md shadow-blue-500/5 disabled:opacity-55"
-                        >
-                          {aiLoading ? "Thinking..." : "Deep AI Review"}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setJobDescription("");
-                            setJobMatchResult("");
-                            setActiveTab("job-match");
-                          }}
-                          className="flex-1 rounded-lg bg-slate-800 border border-slate-800 py-2 text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white transition-all flex items-center justify-center gap-1"
-                        >
-                          Match Jobs
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => {
+                          setJobDescription("");
+                          setJobMatchResult("");
+                          setActiveTab("job-match");
+                        }}
+                        className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 py-2 text-xs font-bold text-white hover:from-blue-500 hover:to-violet-500 transition-all flex items-center justify-center gap-1 shadow-md shadow-blue-500/5 cursor-pointer"
+                      >
+                        Match Jobs
+                      </button>
                       <button
                         onClick={() => handleExportReport(selectedResume.id, selectedResume.file_name)}
                         className="w-full rounded-lg border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 py-2 text-xs font-bold text-blue-400 hover:text-blue-300 transition-all flex items-center justify-center gap-1.5"
@@ -1978,53 +1941,6 @@ function Dashboard() {
                             ✨ Excellent parser rating! No suggestions needed.
                           </p>
                         )}
-                      </div>
-                    </div>
-
-                    {/* Gemini AI deep review output */}
-                    <div className="rounded-2xl bg-slate-900/40 border border-slate-850 p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-violet-400">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 21l.813-5.096a5.45 5.45 0 0 1-1.087-1.085L3.627 12h5.096a5.45 5.45 0 0 1 1.085-1.087L12 3.627l1.087 5.096a5.45 5.45 0 0 1 1.085 1.087H19.25c.622 0 1.125.503 1.125 1.125V12h-5.096a5.45 5.45 0 0 1-1.087 1.085L15 21l-.813-5.096a5.45 5.45 0 0 1-1.085-1.087H9.813Z" />
-                          </svg>
-                          Gemini Deep Audit Insight
-                        </h4>
-                        {!aiAnalysis && !aiLoading && (
-                          <button
-                            onClick={runGeminiAnalysis}
-                            className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-xs font-bold text-white transition-all flex items-center gap-1"
-                          >
-                            Generate Audit
-                          </button>
-                        )}
-                      </div>
-
-                      {aiLoading && (
-                        <div className="flex flex-col items-center justify-center py-10 space-y-3">
-                          <span className="w-8 h-8 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin"></span>
-                          <span className="text-xs text-slate-500 font-medium">Gemini model analyzing profile context...</span>
-                        </div>
-                      )}
-
-                      {aiAnalysis && (
-                        <div className="bg-slate-950/70 rounded-xl p-5 border border-slate-800/80 prose prose-invert max-w-none text-xs leading-relaxed text-slate-300 whitespace-pre-wrap">
-                          {aiAnalysis}
-                        </div>
-                      )}
-
-                      {!aiAnalysis && !aiLoading && (
-                        <p className="text-xs text-slate-500 italic text-center py-6">
-                          Click "Generate Audit" to perform full analysis using Gemini AI.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Resume extracted text preview */}
-                    <div className="rounded-2xl bg-slate-900/40 border border-slate-850 p-6">
-                      <h4 className="text-sm font-bold text-white mb-4">Parsed Text Output</h4>
-                      <div className="bg-slate-950/50 rounded-xl p-4.5 max-h-60 overflow-y-auto border border-slate-800/60 font-mono text-[10px] text-slate-400 whitespace-pre-line leading-relaxed">
-                        {selectedResume.extracted_text || "No text could be extracted."}
                       </div>
                     </div>
                   </div>
