@@ -1071,37 +1071,212 @@ function Dashboard() {
     }
   };
 
-  // Extract suggestions and skills list from local parsing
-  const getDetectedSkillsAndSuggestions = (text: string) => {
-    const lower = text.toLowerCase();
-    
-    // Quick mock skill check match similar to backend database for visual tags
-    const presetSkills = [
-      "python", "java", "javascript", "typescript", "c++", "c#", "go", "rust", "html", "css", 
-      "react", "next.js", "angular", "vue", "fastapi", "django", "node.js", "express", 
-      "mysql", "postgresql", "mongodb", "sqlite", "git", "docker", "kubernetes", "aws", "azure", 
-      "linux", "machine learning", "deep learning", "tensorflow", "pytorch", "nlp", "gemini"
+  // Extract ONLY text inside the dedicated SKILLS section
+  const extractSkillsSectionText = (fullText: string): string => {
+    if (!fullText || fullText.trim().length < 10) return "";
+
+    const skillHeaders = [
+      "technical skills",
+      "key skills",
+      "core competencies",
+      "core skills",
+      "skills & abilities",
+      "skills and proficiencies",
+      "skills and expertise",
+      "areas of expertise",
+      "programming skills",
+      "it skills",
+      "computer skills",
+      "technologies",
+      "skills",
     ];
-    
-    const detected = presetSkills.filter(skill => {
-      const escapedSkill = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(`(?:^|[^a-zA-Z0-9_])${escapedSkill}(?=$|[^a-zA-Z0-9_])`, "i");
-      return regex.test(lower);
-    });
+
+    const otherHeaders = [
+      "projects",
+      "key projects",
+      "academic projects",
+      "personal projects",
+      "work experience",
+      "professional experience",
+      "additional experience",
+      "relevant experience",
+      "experience",
+      "employment history",
+      "internships",
+      "education",
+      "academic background",
+      "academics",
+      "qualifications",
+      "certifications",
+      "certificates",
+      "achievements",
+      "accomplishments",
+      "awards",
+      "honors",
+      "publications",
+      "research",
+      "summary",
+      "professional summary",
+      "career objective",
+      "objective",
+      "about me",
+      "volunteering",
+      "activities",
+      "extra-curricular",
+      "languages known",
+      "personal details",
+      "declaration",
+      "references",
+      "interests",
+      "hobbies",
+    ];
+
+    const lines = fullText.split(/\r?\n/);
+    let inSkillsSection = false;
+    const skillsLines: string[] = [];
+
+    const startRegex = new RegExp(`^(?:[\\s\\*\\#\\-\\•]*)\\b(${skillHeaders.join("|")})\\b[\\s\\:\\-\\|]*$`, "i");
+    const stopRegex = new RegExp(`^(?:[\\s\\*\\#\\-\\•]*)\\b(${otherHeaders.join("|")})\\b[\\s\\:\\-\\|]*$`, "i");
+
+    for (const line of lines) {
+      const stripped = line.trim();
+      if (!stripped) {
+        if (inSkillsSection) skillsLines.push("");
+        continue;
+      }
+
+      if (!inSkillsSection) {
+        if (startRegex.test(stripped)) {
+          inSkillsSection = true;
+          continue;
+        }
+      } else {
+        if (stopRegex.test(stripped)) {
+          break;
+        }
+        skillsLines.push(stripped);
+      }
+    }
+
+    if (!inSkillsSection || skillsLines.length === 0) {
+      // Fallback regex pattern across text block
+      const blockPattern = new RegExp(
+        `(?:^|\\n)\\s*(?:\\d+[\\.\\)]\\s*)?(?:[\\*\\#\\-\\•]*)\\s*\\b(${skillHeaders.join("|")})\\b\\s*[\\:\\-\\|]?\\s*\\n([\\s\\S]*?)(?=\\n\\s*(?:[\\*\\#\\-\\•]*)\\s*\\b(?:${otherHeaders.join("|")})\\b\\s*[\\:\\-\\|]?\\s*\\n|$)`,
+        "i"
+      );
+      const match = blockPattern.exec(fullText);
+      if (match && match[2]) {
+        return match[2].trim();
+      }
+      return "";
+    }
+
+    return skillsLines.join("\n").trim();
+  };
+
+  // Extract suggestions and skills list strictly from the SKILLS section
+  const getDetectedSkillsAndSuggestions = (text: string) => {
+    const skillsSection = extractSkillsSectionText(text);
+
+    if (!skillsSection) {
+      return {
+        skills: [],
+        suggestions: [
+          "No dedicated 'SKILLS' or 'TECHNICAL SKILLS' section was detected in your resume.",
+          "ATS scanning engines require a distinct Skills section to index candidate competencies.",
+          "Add a clearly labeled 'SKILLS' section to your resume to achieve an ATS score (current score is 0%).",
+        ],
+      };
+    }
+
+    const lower = skillsSection.toLowerCase();
+
+    // Comprehensive canonical skills with regex patterns
+    const skillRules = [
+      { name: "c", regex: /\bc\b/i },
+      { name: "c++", regex: /\b(c\+\+|cpp)\b/i },
+      { name: "c#", regex: /\b(c\#|csharp)\b/i },
+      { name: "java", regex: /\bjava\b(?!script)/i },
+      { name: "python", regex: /\bpython\b/i },
+      { name: "javascript", regex: /\b(javascript|js)\b/i },
+      { name: "typescript", regex: /\b(typescript|ts)\b/i },
+      { name: "php", regex: /\bphp\b/i },
+      { name: "go", regex: /\b(go|golang)\b/i },
+      { name: "kotlin", regex: /\bkotlin\b/i },
+      { name: "swift", regex: /\bswift\b/i },
+      { name: "rust", regex: /\brust\b/i },
+      { name: "html", regex: /\bhtml(5)?\b/i },
+      { name: "css", regex: /\bcss(3)?\b/i },
+      { name: "react", regex: /\breact(\.js)?\b/i },
+      { name: "next.js", regex: /\bnext(\.js)?\b/i },
+      { name: "vue", regex: /\bvue(\.js)?\b/i },
+      { name: "angular", regex: /\bangular(\.js)?\b/i },
+      { name: "tailwind", regex: /\btailwind(\s*css)?\b/i },
+      { name: "bootstrap", regex: /\bbootstrap(5)?\b/i },
+      { name: "fastapi", regex: /\bfastapi\b/i },
+      { name: "django", regex: /\bdjango\b/i },
+      { name: "flask", regex: /\bflask\b/i },
+      { name: "spring", regex: /\bspring\b(?!boot)/i },
+      { name: "spring boot", regex: /\bspring\s*boot\b/i },
+      { name: "node.js", regex: /\bnode(\.js)?\b/i },
+      { name: "express", regex: /\bexpress(\.js)?\b/i },
+      { name: "mysql", regex: /\bmysql\b/i },
+      { name: "postgresql", regex: /\bpostgres(ql)?\b/i },
+      { name: "mongodb", regex: /\bmongodb\b/i },
+      { name: "sqlite", regex: /\bsqlite(3)?\b/i },
+      { name: "oracle", regex: /\boracle\b/i },
+      { name: "sql", regex: /\bsql\b/i },
+      { name: "numpy", regex: /\bnumpy\b/i },
+      { name: "pandas", regex: /\bpandas\b/i },
+      { name: "matplotlib", regex: /\bmatplotlib\b/i },
+      { name: "git", regex: /\bgit\b(?!hub)/i },
+      { name: "github", regex: /\bgithub\b/i },
+      { name: "docker", regex: /\bdocker\b/i },
+      { name: "kubernetes", regex: /\b(kubernetes|k8s)\b/i },
+      { name: "aws", regex: /\b(aws|amazon\s+web\s+services)\b/i },
+      { name: "azure", regex: /\bazure\b/i },
+      { name: "linux", regex: /\blinux\b/i },
+      { name: "machine learning", regex: /\bmachine\s+learning\b/i },
+      { name: "deep learning", regex: /\bdeep\s+learning\b/i },
+      { name: "tensorflow", regex: /\btensorflow\b/i },
+      { name: "pytorch", regex: /\bpytorch\b/i },
+      { name: "nlp", regex: /\bnlp\b/i },
+      { name: "gemini", regex: /\bgemini(\s*ai)?\b/i },
+    ];
+
+    const detected: string[] = [];
+    for (const rule of skillRules) {
+      if (rule.regex.test(lower)) {
+        detected.push(rule.name);
+      }
+    }
 
     const suggestions: string[] = [];
-    if (detected.length < 8) suggestions.push("Add more core technical skills to improve indexing.");
-    if (!detected.includes("github") && !lower.includes("github.com")) suggestions.push("Provide links to a portfolio website or GitHub profile.");
-    if (!detected.includes("docker")) suggestions.push("Adding Docker containerization demonstrates devops proficiency.");
-    if (!detected.includes("aws") && !detected.includes("azure")) suggestions.push("Mention cloud operations (AWS/Azure) to raise the ATS ranking.");
-    if (text.length < 500) suggestions.push("Your resume seems short. Elaborate on work experiences and project scopes.");
+    if (detected.length === 0) {
+      suggestions.push("No recognized technical skills found under your Skills section. Please list relevant languages and tools.");
+    } else if (detected.length < 8) {
+      suggestions.push("Add more core technical skills to your Skills section to improve search ranking.");
+    }
+    if (!detected.includes("github") && !detected.includes("git")) {
+      suggestions.push("Mention version control (Git / GitHub) in your Skills section.");
+    }
+    if (!detected.includes("docker") && !detected.includes("kubernetes")) {
+      suggestions.push("Adding Docker containerization demonstrates devops proficiency.");
+    }
+    if (!detected.includes("aws") && !detected.includes("azure")) {
+      suggestions.push("Mention cloud operations (AWS/Azure) in Skills to raise ATS ranking.");
+    }
 
-    return { skills: detected, suggestions };
+    return { skills: Array.from(new Set(detected)), suggestions };
   };
 
   const currentSkillsAndSuggestions = selectedResume?.extracted_text 
     ? getDetectedSkillsAndSuggestions(selectedResume.extracted_text)
     : { skills: [], suggestions: [] };
+
+  const effectiveAtsScore = (selectedResume && currentSkillsAndSuggestions.skills.length === 0)
+    ? 0
+    : (selectedResume?.ats_score ?? 0);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col md:flex-row relative overflow-hidden font-sans">
@@ -1686,8 +1861,8 @@ function Dashboard() {
                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                           />
                           <path
-                            className="text-blue-500 transition-all duration-1000"
-                            strokeDasharray={`${selectedResume.ats_score ?? 0}, 100`}
+                            className={`${effectiveAtsScore >= 70 ? "text-emerald-500" : effectiveAtsScore > 0 ? "text-blue-500" : "text-rose-500"} transition-all duration-1000`}
+                            strokeDasharray={`${effectiveAtsScore}, 100`}
                             strokeWidth="3"
                             strokeLinecap="round"
                             stroke="currentColor"
@@ -1696,7 +1871,7 @@ function Dashboard() {
                           />
                         </svg>
                         <div className="absolute flex flex-col items-center justify-center">
-                          <span className="text-2xl font-black text-white">{selectedResume.ats_score ?? 0}%</span>
+                          <span className={`text-2xl font-black ${effectiveAtsScore === 0 ? "text-rose-400" : "text-white"}`}>{effectiveAtsScore}%</span>
                           <span className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">ATS Score</span>
                         </div>
                       </div>
@@ -1980,8 +2155,14 @@ function Dashboard() {
                     {selectedResume ? (
                       <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 flex items-center justify-between text-xs">
                         <span className="font-bold text-white truncate mr-3">{selectedResume.file_name}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
-                          {selectedResume.ats_score}% ATS
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                          effectiveAtsScore >= 70
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : effectiveAtsScore > 0
+                            ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                            : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                        }`}>
+                          {effectiveAtsScore}% ATS
                         </span>
                       </div>
                     ) : (
