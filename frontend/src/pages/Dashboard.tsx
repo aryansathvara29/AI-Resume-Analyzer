@@ -2154,13 +2154,6 @@ function Dashboard() {
                                 <span>📜</span> Upload Certificate
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleStartInlineAITest(activeDropdownSkill)}
-                              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-blue-500/10 cursor-pointer"
-                            >
-                              <span>🧠</span> Start AI Test (min 3 questions)
-                            </button>
                           </div>
                         )}
                       </div>
@@ -2210,21 +2203,19 @@ function Dashboard() {
                                   <span className="text-xl">🎯</span>
                                   <h4 className="text-sm font-bold text-white">
                                     Assessment for:{" "}
-                                    <span className="text-blue-400 capitalize">
-                                      {activeDropdownSkill === "ALL_SKILLS"
-                                        ? `All Identified Skills (${currentSkillsAndSuggestions.skills.length} skills)`
-                                        : activeDropdownSkill || "Select a Skill"}
+                                    <span className="text-blue-400">
+                                      All {currentSkillsAndSuggestions.skills.length} Identified Skills
                                     </span>
                                   </h4>
                                 </div>
                                 <p className="text-xs text-slate-300 leading-relaxed">
-                                  This automated test generates multiple-choice questions with a <strong className="text-white font-bold">minimum of 3 questions per skill</strong>. You must achieve <strong className="text-emerald-400 font-bold">70% or above</strong> on the assessment to verify your skill proficiency and earn the verified badge on your candidate profile.
+                                  This automated test evaluates <strong className="text-white font-bold">all your identified skills together</strong> with a minimum of 3 questions per skill. You must achieve <strong className="text-emerald-400 font-bold">70% or above</strong> on the combined assessment to verify your skill proficiency and earn verified badges on your profile.
                                 </p>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
                                   <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center">
-                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Requirement</span>
-                                    <span className="text-xs font-extrabold text-white">Min 3 Questions / Skill</span>
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Questions</span>
+                                    <span className="text-xs font-extrabold text-white">{currentSkillsAndSuggestions.skills.length * 3}+ Questions</span>
                                   </div>
                                   <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center">
                                     <span className="text-[10px] text-slate-400 uppercase font-bold block">Passing Criteria</span>
@@ -2232,7 +2223,7 @@ function Dashboard() {
                                   </div>
                                   <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center">
                                     <span className="text-[10px] text-slate-400 uppercase font-bold block">Credential</span>
-                                    <span className="text-xs font-extrabold text-blue-400">Verified Badge ✅</span>
+                                    <span className="text-xs font-extrabold text-blue-400">All Skills Verified ✅</span>
                                   </div>
                                 </div>
                               </div>
@@ -2437,10 +2428,10 @@ function Dashboard() {
                                   <div className="pt-2 text-center">
                                     <button
                                       type="button"
-                                      onClick={() => handleStartInlineAITest(aiTestResult.skill_name)}
+                                      onClick={() => handleStartInlineAITest("ALL_SKILLS")}
                                       className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition-all shadow-md shadow-blue-500/20 cursor-pointer"
                                     >
-                                      🔁 Retake Test (min 3 questions)
+                                      🔁 Retake Full Skills Test
                                     </button>
                                   </div>
                                 </div>
@@ -2454,11 +2445,11 @@ function Dashboard() {
                           <div className="pt-3 border-t border-slate-800/80">
                             <button
                               type="button"
-                              onClick={() => handleStartInlineAITest()}
-                              disabled={!activeDropdownSkill && currentSkillsAndSuggestions.skills.length === 0}
+                              onClick={() => handleStartInlineAITest("ALL_SKILLS")}
+                              disabled={currentSkillsAndSuggestions.skills.length === 0}
                               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold text-xs tracking-wide transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                             >
-                              <span>🚀</span> Start Assessment ({activeDropdownSkill === "ALL_SKILLS" ? `${currentSkillsAndSuggestions.skills.length * 3}+ Questions` : "Minimum 3 Questions"})
+                              <span>🚀</span> Start Full Assessment ({currentSkillsAndSuggestions.skills.length * 3}+ Questions for All {currentSkillsAndSuggestions.skills.length} Skills)
                             </button>
                           </div>
                         )}
