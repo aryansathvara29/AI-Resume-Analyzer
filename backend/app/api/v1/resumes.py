@@ -39,7 +39,7 @@ def upload_resume(
     if existing_resume:
         raise HTTPException(
             status_code=400,
-            detail="Aap ek profile me ek hi resume scan kar sakte ho. Agar dusra resume upload karna hai, toh pehle wala resume delete karna hoga.",
+            detail="You can only upload 1 resume per profile. If you want to upload a new resume, please delete your existing resume first.",
         )
 
     # -------------------------
