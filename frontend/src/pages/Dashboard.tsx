@@ -2212,21 +2212,6 @@ function Dashboard() {
                                 <p className="text-xs text-slate-300 leading-relaxed">
                                   This automated test evaluates <strong className="text-white font-bold">all your identified skills together</strong> with a minimum of 3 questions per skill. You must achieve <strong className="text-emerald-400 font-bold">70% or above</strong> on the combined assessment to verify your skill proficiency and earn verified badges on your profile.
                                 </p>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                                  <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center">
-                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Questions</span>
-                                    <span className="text-xs font-extrabold text-white">{currentSkillsAndSuggestions.skills.length * 3}+ Questions</span>
-                                  </div>
-                                  <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center">
-                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Passing Criteria</span>
-                                    <span className="text-xs font-extrabold text-emerald-400">70% or Above</span>
-                                  </div>
-                                  <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center">
-                                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Credential</span>
-                                    <span className="text-xs font-extrabold text-blue-400">All Skills Verified ✅</span>
-                                  </div>
-                                </div>
                               </div>
                             </div>
                           )}
@@ -2448,9 +2433,9 @@ function Dashboard() {
                               type="button"
                               onClick={() => handleStartInlineAITest("ALL_SKILLS")}
                               disabled={currentSkillsAndSuggestions.skills.length === 0}
-                              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold text-xs tracking-wide transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold text-xs tracking-wide transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center cursor-pointer disabled:opacity-50"
                             >
-                              <span>🚀</span> Start Full Assessment ({currentSkillsAndSuggestions.skills.length * 3}+ Questions for All {currentSkillsAndSuggestions.skills.length} Skills)
+                              Start Full Assessment
                             </button>
                           </div>
                         )}
