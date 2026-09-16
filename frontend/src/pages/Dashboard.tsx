@@ -778,7 +778,7 @@ function Dashboard() {
 
   // Delete resume
   const handleDeleteResume = async (resumeId: number) => {
-    if (!window.confirm("Are you sure you want to delete this resume?")) return;
+    if (!window.confirm("Are you sure you want to delete this resume? You will then be able to upload a new resume.")) return;
     try {
       await api.delete(`/resumes/${resumeId}`);
       setHistory((prev) => prev.filter((item) => item.id !== resumeId));
@@ -786,6 +786,9 @@ function Dashboard() {
       if (selectedResume?.id === resumeId) {
         setSelectedResume(null);
       }
+      setFile(null);
+      setUploadError("");
+      setUploadSuccess(false);
       fetchData();
     } catch (err: any) {
       console.error("Error deleting resume:", err);
@@ -968,6 +971,13 @@ function Dashboard() {
     setUploadError("");
     setUploadSuccess(false);
 
+    // Enforce 1 resume per profile limit
+    if (history.length > 0 || selectedResume) {
+      setUploadError("Aap ek profile me ek hi resume scan kar sakte ho. Agar dusra resume upload karna hai, toh pehle wala resume delete karna hoga.");
+      setFile(null);
+      return;
+    }
+
     // Check size limit (5MB)
     if (selectedFile.size > 5 * 1024 * 1024) {
       setUploadError("File size exceeds maximum limit of 5 MB.");
@@ -999,6 +1009,12 @@ function Dashboard() {
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
+
+    // Enforce 1 resume per profile limit
+    if (history.length > 0 || selectedResume) {
+      setUploadError("Aap ek profile me ek hi resume scan kar sakte ho. Agar dusra resume upload karna hai, toh pehle wala resume delete karna hoga.");
+      return;
+    }
 
     setUploading(true);
     setUploadError("");
@@ -1814,91 +1830,176 @@ function Dashboard() {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
               {/* Left Column: Upload panel */}
               <div className="xl:col-span-1 space-y-6">
-                <div className="rounded-2xl bg-slate-900/60 backdrop-blur-md p-6 border border-slate-800">
-                  <h3 className="text-lg font-bold text-white mb-4">Upload File</h3>
+                <div className="rounded-2xl bg-slate-900/60 backdrop-blur-md p-6 border border-slate-800 space-y-4">
+                  <h3 className="text-lg font-bold text-white">Upload File</h3>
 
-                  <form onSubmit={handleUploadSubmit} className="space-y-4">
-                    {/* Drag & Touch Select Zone */}
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      className={`relative border-2 border-dashed rounded-xl p-6 md:p-8 flex flex-col items-center justify-center transition-all cursor-pointer select-none ${
-                        isDragOver
-                          ? "border-blue-500 bg-blue-500/5"
-                          : "border-slate-800 hover:border-slate-700 bg-slate-950/40"
-                      }`}
-                    >
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        onChange={handleFileChange}
-                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
-                        className="hidden"
-                        disabled={uploading}
-                      />
+                  {(selectedResume || (history && history.length > 0)) ? (
+                    <div className="space-y-4">
+                      {/* Warning Box */}
+                      <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-4.5 space-y-3 animate-fade-in">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400">Single Resume Policy</h4>
+                            <p className="text-xs text-amber-100 font-medium mt-1 leading-relaxed">
+                              Aap ek profile me ek hi resume scan kar sakte ho. Agar dusra resume upload karna hai, toh pehle wala resume delete karna hoga.
+                            </p>
+                          </div>
+                        </div>
 
-                      <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-850 flex items-center justify-center text-blue-400 mb-3 shadow-inner">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
-                        </svg>
+                        {/* Existing Resume Item Preview */}
+                        {(() => {
+                          const activeRes = selectedResume || history[0];
+                          return (
+                            <>
+                              <div className="bg-slate-950/70 rounded-lg border border-slate-800 p-3 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 truncate min-w-0">
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 text-blue-400 shrink-0">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                  </svg>
+                                  <div className="truncate">
+                                    <span className="text-xs font-bold text-white block truncate">{activeRes.file_name}</span>
+                                    <span className="text-[10px] text-slate-400">
+                                      {activeRes.uploaded_at ? new Date(activeRes.uploaded_at).toLocaleDateString() : "Active Resume"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border shrink-0 ${
+                                  (activeRes.ats_score ?? 0) >= 70
+                                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                    : (activeRes.ats_score ?? 0) > 0
+                                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                    : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                }`}>
+                                  {activeRes.ats_score ?? 0}% ATS
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteResume(activeRes.id)}
+                                className="w-full py-2.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow-red-500/10"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4 text-red-400">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                                Pehle Wala Resume Delete Karein
+                              </button>
+                            </>
+                          );
+                        })()}
                       </div>
 
-                      <p className="text-xs font-bold text-white text-center">
-                        {file ? file.name : "Tap to Select Resume (or Drag & Drop)"}
-                      </p>
-                      <p className="text-[10px] text-slate-400 text-center mt-1">
-                        PDF or DOCX format (Max 5MB)
-                      </p>
-
-                      {!file && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            fileInputRef.current?.click();
-                          }}
-                          className="mt-3 px-3.5 py-1.5 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 text-xs font-bold transition-all cursor-pointer"
-                        >
-                          📁 Select Resume File
-                        </button>
-                      )}
-                    </div>
-
-                    {uploadError && (
-                      <p className="text-xs text-red-400 font-semibold">{uploadError}</p>
-                    )}
-                    {uploadSuccess && (
-                      <p className="text-xs text-emerald-400 font-semibold">✅ Upload and parsing complete!</p>
-                    )}
-
-                    <div className="flex gap-3">
-                      {file && (
-                        <button
-                          type="button"
-                          onClick={() => setFile(null)}
-                          className="flex-1 rounded-lg border border-slate-850 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-all"
-                        >
-                          Clear
-                        </button>
-                      )}
-                      <button
-                        type="submit"
-                        disabled={!file || uploading}
-                        className="flex-[2] rounded-lg bg-blue-600 hover:bg-blue-500 py-2.5 text-xs font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/10"
+                      {/* Locked Dropzone */}
+                      <div
+                        onClick={() => {
+                          setUploadError("Aap ek profile me ek hi resume scan kar sakte ho. Agar dusra resume upload karna hai, toh pehle wala resume delete karna hoga.");
+                        }}
+                        className="border-2 border-dashed border-slate-800 bg-slate-950/20 rounded-xl p-6 flex flex-col items-center justify-center text-center opacity-70 cursor-not-allowed select-none transition-all hover:border-amber-500/40"
                       >
-                        {uploading ? (
-                          <>
-                            <span className="w-3.5 h-3.5 rounded-full border border-white/30 border-t-white animate-spin"></span>
-                            Analyzing...
-                          </>
-                        ) : (
-                          "Start Scan"
-                        )}
-                      </button>
+                        <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400 mb-2.5">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                          </svg>
+                        </div>
+                        <p className="text-xs font-bold text-slate-300">Upload Locked (1 Resume Limit)</p>
+                        <p className="text-[11px] text-slate-500 mt-1 max-w-xs leading-relaxed">
+                          Naya resume upload karne ke liye upar diye gaye button se pehle wala resume delete karein.
+                        </p>
+                      </div>
+
+                      {uploadError && (
+                        <p className="text-xs text-red-400 font-semibold">{uploadError}</p>
+                      )}
                     </div>
-                  </form>
+                  ) : (
+                    <form onSubmit={handleUploadSubmit} className="space-y-4">
+                      {/* Drag & Touch Select Zone */}
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`relative border-2 border-dashed rounded-xl p-6 md:p-8 flex flex-col items-center justify-center transition-all cursor-pointer select-none ${
+                          isDragOver
+                            ? "border-blue-500 bg-blue-500/5"
+                            : "border-slate-800 hover:border-slate-700 bg-slate-950/40"
+                        }`}
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          onChange={handleFileChange}
+                          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                          className="hidden"
+                          disabled={uploading}
+                        />
+
+                        <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-850 flex items-center justify-center text-blue-400 mb-3 shadow-inner">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+                          </svg>
+                        </div>
+
+                        <p className="text-xs font-bold text-white text-center">
+                          {file ? file.name : "Tap to Select Resume (or Drag & Drop)"}
+                        </p>
+                        <p className="text-[10px] text-slate-400 text-center mt-1">
+                          PDF or DOCX format (Max 5MB)
+                        </p>
+
+                        {!file && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              fileInputRef.current?.click();
+                            }}
+                            className="mt-3 px-3.5 py-1.5 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 text-xs font-bold transition-all cursor-pointer"
+                          >
+                            📁 Select Resume File
+                          </button>
+                        )}
+                      </div>
+
+                      {uploadError && (
+                        <p className="text-xs text-red-400 font-semibold">{uploadError}</p>
+                      )}
+                      {uploadSuccess && (
+                        <p className="text-xs text-emerald-400 font-semibold">✅ Upload and parsing complete!</p>
+                      )}
+
+                      <div className="flex gap-3">
+                        {file && (
+                          <button
+                            type="button"
+                            onClick={() => setFile(null)}
+                            className="flex-1 rounded-lg border border-slate-850 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-all"
+                          >
+                            Clear
+                          </button>
+                        )}
+                        <button
+                          type="submit"
+                          disabled={!file || uploading}
+                          className="flex-[2] rounded-lg bg-blue-600 hover:bg-blue-500 py-2.5 text-xs font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/10"
+                        >
+                          {uploading ? (
+                            <>
+                              <span className="w-3.5 h-3.5 rounded-full border border-white/30 border-t-white animate-spin"></span>
+                              Analyzing...
+                            </>
+                          ) : (
+                            "Start Scan"
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
 
                 {/* Switcher/Context display if a resume is already selected */}

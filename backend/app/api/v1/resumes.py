@@ -33,6 +33,16 @@ def upload_resume(
 ):
 
     # -------------------------
+    # Enforce Single Resume Limit Per Profile
+    # -------------------------
+    existing_resume = db.query(Resume).filter(Resume.user_id == current_user.id).first()
+    if existing_resume:
+        raise HTTPException(
+            status_code=400,
+            detail="Aap ek profile me ek hi resume scan kar sakte ho. Agar dusra resume upload karna hai, toh pehle wala resume delete karna hoga.",
+        )
+
+    # -------------------------
     # Validate File for Mobile & Desktop
     # -------------------------
     original_filename = file.filename or "resume.pdf"
