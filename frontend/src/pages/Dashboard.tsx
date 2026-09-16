@@ -229,6 +229,7 @@ function Dashboard() {
   const [jobDescription, setJobDescription] = useState<string>("");
   const [jobMatchResult, setJobMatchResult] = useState<string>("");
   const [matchLoading, setMatchLoading] = useState<boolean>(false);
+  const [resumeSelecting, setResumeSelecting] = useState<boolean>(false);
 
   // Identified Skills Dropdown and AI Test Section states
   const [selectedSkillDropdown, setSelectedSkillDropdown] = useState<string>("");
@@ -751,21 +752,21 @@ function Dashboard() {
   };
 
   // Inspect detailed resume from history
-  const loadResumeDetails = async (resumeId: number) => {
+  const loadResumeDetails = async (resumeId: number, switchTab: boolean = true) => {
     try {
       setUploading(true);
       setErrorMsg("");
       const res = await api.get(`/resumes/${resumeId}`);
       setSelectedResume(res.data);
       setJobMatchResult("");
-      setActiveTab("upload"); // switch to analysis view
+      if (switchTab) setActiveTab("upload"); // switch to analysis view
     } catch (err: any) {
       console.error("Error loading resume:", err);
       const foundInHistory = history.find((item: any) => item.id === resumeId) || recruiterResumes.find((c: any) => c.id === resumeId);
       if (foundInHistory) {
         setSelectedResume(foundInHistory);
         setJobMatchResult("");
-        setActiveTab("upload");
+        if (switchTab) setActiveTab("upload");
       } else {
         let detailMsg = err.response?.data?.detail;
         setErrorMsg(detailMsg || "Failed to load details for this resume.");
@@ -2605,55 +2606,115 @@ function Dashboard() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
               {/* Form Input fields */}
-              <div className="space-y-6">
-                <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4.5">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                      Selected Resume
-                    </label>
-                    {selectedResume ? (
-                      <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 flex items-center justify-between text-xs">
-                        <span className="font-bold text-white truncate mr-3">{selectedResume.file_name}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
-                          effectiveAtsScore >= 70
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            : effectiveAtsScore > 0
-                            ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                            : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                        }`}>
-                          {effectiveAtsScore}% ATS
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-red-500/5 rounded-lg border border-red-500/15 text-xs text-red-400 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 flex-shrink-0">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                        </svg>
-                        <span>No resume selected. Go to <b>Upload & Scan</b> to upload or select a profile first.</span>
-                      </div>
-                    )}
-                  </div>
+              <div className="flex flex-col h-full">
+                <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4.5 flex-1 flex flex-col justify-between">
+                  <div className="space-y-4 flex-1 flex flex-col">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                        <span>Selected Resume</span>
+                        {resumeSelecting && (
+                          <span className="text-[11px] text-blue-400 font-normal flex items-center gap-1.5 lowercase">
+                            <span className="w-3 h-3 rounded-full border border-blue-400/30 border-t-blue-400 animate-spin"></span>
+                            Loading...
+                          </span>
+                        )}
+                      </label>
 
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                      Paste Job Description
-                    </label>
-                    <textarea
-                      rows={10}
-                      value={jobDescription}
-                      onChange={(e) => setJobDescription(e.target.value)}
-                      placeholder="Paste the target job description (responsibilities, technical requirements, skills list) here..."
-                      className="w-full bg-slate-950/60 rounded-xl border border-slate-800 p-4 text-xs text-white placeholder-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all font-sans leading-relaxed"
-                      required
-                    />
+                      {((history && history.length > 0) || (recruiterResumes && recruiterResumes.length > 0)) ? (
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <select
+                              value={selectedResume?.id || ""}
+                              onChange={async (e) => {
+                                const rId = Number(e.target.value);
+                                if (rId) {
+                                  setResumeSelecting(true);
+                                  await loadResumeDetails(rId, false);
+                                  setResumeSelecting(false);
+                                } else {
+                                  setSelectedResume(null);
+                                  setJobMatchResult("");
+                                }
+                              }}
+                              disabled={resumeSelecting}
+                              className="w-full bg-slate-950/70 rounded-xl border border-slate-800 px-3.5 py-2.5 text-xs text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all appearance-none cursor-pointer pr-10 font-medium disabled:opacity-50"
+                            >
+                              <option value="" disabled={Boolean(selectedResume)}>
+                                -- Select an uploaded resume ({((history && history.length > 0) ? history : recruiterResumes).length} available) --
+                              </option>
+                              {((history && history.length > 0) ? history : recruiterResumes).map((item: any) => (
+                                <option key={item.id} value={item.id} className="bg-slate-900 text-white py-1">
+                                  {item.file_name || item.user_name || `Resume #${item.id}`} {item.ats_score !== null && item.ats_score !== undefined ? ` • ${item.ats_score}% ATS` : ""}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                              </svg>
+                            </div>
+                          </div>
+
+                          {selectedResume && (
+                            <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between text-xs animate-fade-in">
+                              <div className="flex items-center gap-2 truncate mr-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-blue-400 flex-shrink-0">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                </svg>
+                                <span className="font-bold text-white truncate">{selectedResume.file_name}</span>
+                              </div>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 border ${
+                                effectiveAtsScore >= 70
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  : effectiveAtsScore > 0
+                                  ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                  : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                              }`}>
+                                {effectiveAtsScore}% ATS
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-red-500/5 rounded-lg border border-red-500/15 text-xs text-red-400 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 flex-shrink-0">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                            </svg>
+                            <span>No resume uploaded yet.</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("upload")}
+                            className="px-2.5 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-md text-[11px] font-semibold transition-colors"
+                          >
+                            Upload Now
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 flex flex-col">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                        Paste Job Description
+                      </label>
+                      <textarea
+                        rows={10}
+                        value={jobDescription}
+                        onChange={(e) => setJobDescription(e.target.value)}
+                        placeholder="Paste the target job description (responsibilities, technical requirements, skills list) here..."
+                        className="w-full flex-1 bg-slate-950/60 rounded-xl border border-slate-800 p-4 text-xs text-white placeholder-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all font-sans leading-relaxed min-h-[220px]"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <button
                     onClick={runJobMatching}
-                    disabled={!selectedResume || !jobDescription.trim() || matchLoading}
-                    className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 py-3 font-bold text-xs text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/10"
+                    disabled={!selectedResume || !jobDescription.trim() || matchLoading || resumeSelecting}
+                    className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 py-3 font-bold text-xs text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/10 mt-3"
                   >
                     {matchLoading ? (
                       <>
@@ -2668,33 +2729,50 @@ function Dashboard() {
               </div>
 
               {/* Comparison Output display */}
-              <div>
-                <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6 min-h-[400px] flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-emerald-400">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                      </svg>
-                      Alignment Scoring Analysis
-                    </h3>
+              <div className="flex flex-col h-full">
+                <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 flex-1 flex flex-col justify-between">
+                  <div className="flex-1 flex flex-col">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-4">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-emerald-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        Alignment Scoring Analysis
+                      </h3>
+                      {jobMatchResult && !matchLoading && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
+                          Analysis Complete
+                        </span>
+                      )}
+                    </div>
 
                     {matchLoading && (
-                      <div className="flex flex-col items-center justify-center py-20 space-y-3">
+                      <div className="flex-1 flex flex-col items-center justify-center py-20 space-y-3">
                         <span className="w-8 h-8 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin"></span>
-                        <span className="text-xs text-slate-500 font-medium">Gemini model calculating overlap indexes...</span>
+                        <span className="text-xs text-slate-400 font-medium">Gemini model calculating overlap indexes...</span>
                       </div>
                     )}
 
                     {jobMatchResult && !matchLoading && (
-                      <div className="bg-slate-950/70 border border-slate-850/80 rounded-xl p-5 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed font-mono max-h-[500px] overflow-y-auto">
+                      <div className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-xl p-5 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed font-mono max-h-[500px] overflow-y-auto">
                         {jobMatchResult}
                       </div>
                     )}
 
                     {!jobMatchResult && !matchLoading && (
-                      <p className="text-xs text-slate-500 italic text-center py-20">
-                        Provide a job description and submit compliance check to see alignment findings.
-                      </p>
+                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center border border-dashed border-slate-800/70 rounded-xl bg-slate-950/20 my-auto min-h-[280px]">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-3 shadow-inner">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-slate-400">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                          </svg>
+                        </div>
+                        <p className="text-xs font-semibold text-slate-300 mb-1">
+                          Ready for Match Analysis
+                        </p>
+                        <p className="text-[11px] text-slate-500 max-w-xs leading-relaxed">
+                          Select an uploaded resume from the dropdown, paste the job description on the left, and submit compliance check.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
