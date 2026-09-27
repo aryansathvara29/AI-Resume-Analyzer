@@ -231,25 +231,6 @@ function Dashboard() {
   const [matchLoading, setMatchLoading] = useState<boolean>(false);
   const [resumeSelecting, setResumeSelecting] = useState<boolean>(false);
 
-  // Identified Skills Dropdown and AI Test Section states
-  const [selectedSkillDropdown, setSelectedSkillDropdown] = useState<string>("");
-  const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState<boolean>(false);
-  const [aiTestMode, setAiTestMode] = useState<"idle" | "loading" | "quiz" | "result">("idle");
-  const [aiTestQuestions, setAiTestQuestions] = useState<{ id: number; skill?: string; question: string; options: string[]; correct_index: number }[]>([]);
-  const [aiTestCurrentIdx, setAiTestCurrentIdx] = useState<number>(0);
-  const [aiTestSelectedAnswers, setAiTestSelectedAnswers] = useState<{ [key: number]: number }>({});
-  const [aiTestSubmitting, setAiTestSubmitting] = useState<boolean>(false);
-  const [aiTestTargetSkill, setAiTestTargetSkill] = useState<string>("");
-  const [aiTestResult, setAiTestResult] = useState<{
-    skill_name: string;
-    score: number;
-    total: number;
-    percentage: number;
-    passed: boolean;
-    status: string;
-    learning_resources?: any[];
-  } | null>(null);
-  const [aiTestError, setAiTestError] = useState<string>("");
 
   // AI Chatbot states
   const [chatHistory, setChatHistory] = useState<{ sender: "user" | "advisor"; text: string }[]>([
@@ -1293,115 +1274,6 @@ function Dashboard() {
     ? 0
     : (selectedResume?.ats_score ?? 0);
 
-  const activeDropdownSkill = selectedSkillDropdown || (currentSkillsAndSuggestions.skills.length > 0 ? currentSkillsAndSuggestions.skills[0] : "");
-
-  const handleStartInlineAITest = async (skillToTest?: string) => {
-    const target = skillToTest || activeDropdownSkill;
-    if (!target && currentSkillsAndSuggestions.skills.length === 0) return;
-
-    try {
-      setAiTestError("");
-      setAiTestMode("loading");
-      setAiTestTargetSkill(target);
-
-      let payload: any = {};
-      if (target === "ALL_SKILLS") {
-        payload = {
-          skills: currentSkillsAndSuggestions.skills,
-          num_questions: 3 // Minimum 3 questions per skill
-        };
-      } else {
-        payload = {
-          skill_name: target,
-          num_questions: 3 // Minimum 3 questions
-        };
-      }
-
-      const res = await api.post("/skills/generate-test", payload);
-      if (res.data.questions && res.data.questions.length > 0) {
-        setAiTestQuestions(res.data.questions);
-        setAiTestCurrentIdx(0);
-        setAiTestSelectedAnswers({});
-        setAiTestMode("quiz");
-      } else {
-        setAiTestError("Could not generate questions. Please try again.");
-        setAiTestMode("idle");
-      }
-    } catch (err: any) {
-      console.error("AI Test generation error:", err);
-      setAiTestError(err.response?.data?.detail || "Failed to generate AI test questions. Please retry.");
-      setAiTestMode("idle");
-    }
-  };
-
-  const handleSubmitInlineAITest = async () => {
-    try {
-      setAiTestSubmitting(true);
-      setAiTestError("");
-
-      let score = 0;
-      aiTestQuestions.forEach((q, idx) => {
-        if (aiTestSelectedAnswers[idx] === q.correct_index) {
-          score += 1;
-        }
-      });
-
-      const total = aiTestQuestions.length;
-      const percentage = Math.round((score / Math.max(total, 1)) * 100);
-      const isPassed = percentage >= 70; // STRICT 70% PASSING THRESHOLD
-
-      let skillsPassed: string[] = [];
-      if (aiTestTargetSkill === "ALL_SKILLS") {
-        if (isPassed) {
-          skillsPassed = currentSkillsAndSuggestions.skills;
-        }
-      } else if (isPassed) {
-        skillsPassed = [aiTestTargetSkill];
-      }
-
-      const res = await api.post("/skills/submit-test", {
-        skill_name: aiTestTargetSkill === "ALL_SKILLS" ? (currentSkillsAndSuggestions.skills[0] || "All Skills") : aiTestTargetSkill,
-        resume_id: selectedResume?.id,
-        score: score,
-        total: total,
-        skills_passed: skillsPassed.length > 0 ? skillsPassed : undefined,
-      });
-
-      setAiTestResult({
-        skill_name: aiTestTargetSkill === "ALL_SKILLS" ? "All Identified Skills" : aiTestTargetSkill,
-        score: score,
-        total: total,
-        percentage: percentage,
-        passed: isPassed,
-        status: isPassed ? "verified_ai_test" : "learning_recommended",
-        learning_resources: res.data.learning_resources,
-      });
-
-      setAiTestMode("result");
-
-      // Refresh verification badges!
-      if (selectedResume?.id) {
-        fetchSkillVerifications(selectedResume.id);
-      } else {
-        fetchSkillVerifications();
-      }
-    } catch (err: any) {
-      console.error("AI Test submission error:", err);
-      setAiTestError(err.response?.data?.detail || "Failed to submit AI test results.");
-    } finally {
-      setAiTestSubmitting(false);
-    }
-  };
-
-  const handleResetInlineAITest = () => {
-    setAiTestMode("idle");
-    setAiTestResult(null);
-    setAiTestQuestions([]);
-    setAiTestSelectedAnswers({});
-    setAiTestCurrentIdx(0);
-    setAiTestError("");
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col md:flex-row relative overflow-hidden font-sans">
       {/* Decorative gradient glow elements */}
@@ -1979,498 +1851,111 @@ function Dashboard() {
                       </div>
                     </div>
 
-                    {/* 1. IDENTIFIED SKILLS (DROPDOWN) & AI TEST SECTION (EQUAL HEIGHT ALIGNED) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-                      {/* Left: Identified Skills with Dropdown */}
-                      <div className="lg:col-span-5 rounded-2xl bg-slate-900/40 border border-slate-850 p-6 flex flex-col justify-between h-full space-y-4">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3.5">
-                            <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-400">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
-                              </svg>
-                              Identified Skills ({currentSkillsAndSuggestions.skills.length})
-                            </h4>
-                            <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
-                              {currentSkillsAndSuggestions.skills.filter(s => {
-                                const st = skillVerifications[s.toLowerCase()]?.status;
-                                return st === "verified_ai_test" || st === "verified_certificate";
-                              }).length}/{currentSkillsAndSuggestions.skills.length} Verified
-                            </span>
-                          </div>
-
-                          {currentSkillsAndSuggestions.skills.length > 0 ? (
-                            <div className="space-y-4">
-                              {/* Dropdown Selector */}
-                              <div className="relative">
-                                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1.5">
-                                  Select Skill to Inspect / Test:
-                                </label>
-                                <button
-                                  type="button"
-                                  onClick={() => setIsSkillDropdownOpen(!isSkillDropdownOpen)}
-                                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-left transition-all cursor-pointer shadow-sm"
-                                >
-                                  <div className="flex items-center gap-2 overflow-hidden">
-                                    <span className="text-xs font-bold text-white capitalize truncate">
-                                      {activeDropdownSkill === "ALL_SKILLS"
-                                        ? `⚡ All Identified Skills (${currentSkillsAndSuggestions.skills.length})`
-                                        : activeDropdownSkill}
-                                    </span>
-                                    {activeDropdownSkill !== "ALL_SKILLS" && (() => {
-                                      const sVer = skillVerifications[activeDropdownSkill.toLowerCase()];
-                                      if (sVer?.status === "verified_ai_test") return <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">AI Verified ✅</span>;
-                                      if (sVer?.status === "verified_certificate") return <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Cert Verified 📜</span>;
-                                      if (sVer?.status === "learning_recommended") return <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">Needs 70%+ ⚠️</span>;
-                                      return <span className="text-[9px] font-bold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Unverified 🛡️</span>;
-                                    })()}
-                                  </div>
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={2}
-                                    stroke="currentColor"
-                                    className={`w-4 h-4 text-slate-400 transition-transform ${isSkillDropdownOpen ? "rotate-180" : ""}`}
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                                  </svg>
-                                </button>
-
-                                {/* Dropdown Menu Items */}
-                                {isSkillDropdownOpen && (
-                                  <div className="absolute left-0 right-0 top-full mt-2 z-30 bg-slate-900 border border-slate-750 rounded-xl shadow-2xl p-1.5 max-h-64 overflow-y-auto space-y-1 backdrop-blur-xl">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedSkillDropdown("ALL_SKILLS");
-                                        setIsSkillDropdownOpen(false);
-                                        setAiTestMode("idle");
-                                        setAiTestResult(null);
-                                      }}
-                                      className={`w-full flex items-center justify-between p-2 rounded-lg text-xs font-bold transition-all ${
-                                        activeDropdownSkill === "ALL_SKILLS"
-                                          ? "bg-blue-600 text-white"
-                                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                                      }`}
-                                    >
-                                      <span>⚡ All Identified Skills ({currentSkillsAndSuggestions.skills.length})</span>
-                                      <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-200">Test All</span>
-                                    </button>
-                                    <div className="h-px bg-slate-800 my-1"></div>
-                                    {currentSkillsAndSuggestions.skills.map((skill) => {
-                                      const sVer = skillVerifications[skill.toLowerCase()];
-                                      const isCert = sVer?.status === "verified_certificate";
-                                      const isTest = sVer?.status === "verified_ai_test";
-                                      const isFailed = sVer?.status === "learning_recommended";
-
-                                      return (
-                                        <button
-                                          key={skill}
-                                          type="button"
-                                          onClick={() => {
-                                            setSelectedSkillDropdown(skill);
-                                            setIsSkillDropdownOpen(false);
-                                            setAiTestMode("idle");
-                                            setAiTestResult(null);
-                                          }}
-                                          className={`w-full flex items-center justify-between p-2 rounded-lg text-xs font-medium transition-all ${
-                                            activeDropdownSkill === skill
-                                              ? "bg-blue-600/30 text-blue-300 font-bold border border-blue-500/30"
-                                              : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
-                                          }`}
-                                        >
-                                          <span className="capitalize">{skill}</span>
-                                          {isCert && (
-                                            <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                              Cert Verified 📜
-                                            </span>
-                                          )}
-                                          {isTest && (
-                                            <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                              AI Verified ✅
-                                            </span>
-                                          )}
-                                          {isFailed && (
-                                            <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
-                                              Needs 70%+ ⚠️
-                                            </span>
-                                          )}
-                                          {!isCert && !isTest && !isFailed && (
-                                            <span className="text-[9px] text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded">
-                                              Unverified 🛡️
-                                            </span>
-                                          )}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Active Skill Summary Card */}
-                              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Selected Skill</span>
-                                  {(() => {
-                                    if (activeDropdownSkill === "ALL_SKILLS") {
-                                      return <span className="text-[9px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">Multi-Skill Evaluation</span>;
-                                    }
-                                    const sVer = skillVerifications[activeDropdownSkill.toLowerCase()];
-                                    if (sVer?.status === "verified_ai_test") return <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Verified ({sVer.score}/{sVer.total || 3}) ✅</span>;
-                                    if (sVer?.status === "verified_certificate") return <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Verified by Certificate 📜</span>;
-                                    if (sVer?.status === "learning_recommended") return <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">Score &lt; 70% ⚠️</span>;
-                                    return <span className="text-[9px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">Not Verified 🛡️</span>;
-                                  })()}
-                                </div>
-
-                                <div>
-                                  <h3 className="text-base font-black text-white capitalize">
-                                    {activeDropdownSkill === "ALL_SKILLS" ? "All Identified Skills" : activeDropdownSkill}
-                                  </h3>
-                                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                                    {activeDropdownSkill === "ALL_SKILLS"
-                                      ? "Evaluates all identified skills together with min 3 questions each."
-                                      : "Upload an official certificate or start the interactive AI assessment test on the right."}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-xs text-slate-500 italic py-6 text-center">No indexed skills found in the parsed text.</p>
-                          )}
+                    {/* Tabs / Sub-Sections of active scan */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Detected Skills */}
+                      <div className="rounded-2xl bg-slate-900/40 border border-slate-850 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-400">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+                            </svg>
+                            Identified Skills ({currentSkillsAndSuggestions.skills.length})
+                          </h4>
+                          <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
+                            {currentSkillsAndSuggestions.skills.filter(s => {
+                              const st = skillVerifications[s.toLowerCase()]?.status;
+                              return st === "verified_ai_test" || st === "verified_certificate";
+                            }).length}/{currentSkillsAndSuggestions.skills.length} Verified
+                          </span>
                         </div>
 
-                        {/* Action Buttons Pinned to Bottom */}
-                        {currentSkillsAndSuggestions.skills.length > 0 && (
-                          <div className="flex flex-col gap-2 pt-3 border-t border-slate-800/80">
-                            {activeDropdownSkill !== "ALL_SKILLS" && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedSkillToVerify(activeDropdownSkill)}
-                                className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-2 border border-slate-700/60 cursor-pointer shadow-sm"
-                              >
-                                <span>📜</span> Upload Certificate
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                        {currentSkillsAndSuggestions.skills.length > 0 ? (
+                          <div className="space-y-2.5">
+                            {currentSkillsAndSuggestions.skills.map((skill) => {
+                              const sVer = skillVerifications[skill.toLowerCase()];
+                              const isCert = sVer?.status === "verified_certificate";
+                              const isTest = sVer?.status === "verified_ai_test";
+                              const isFailed = sVer?.status === "learning_recommended";
 
-                      {/* Right: AI Test Section */}
-                      <div className="lg:col-span-7 rounded-2xl bg-slate-900/40 border border-slate-850 p-6 flex flex-col justify-between h-full space-y-5">
-                        <div className="space-y-4">
-                          {/* Section Header */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-violet-400 bg-violet-500/10 px-2.5 py-0.5 rounded-full border border-violet-500/20">
-                                  AI Assessment Section
-                                </span>
-                                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                                  70%+ Required to Pass
-                                </span>
-                              </div>
-                              <h3 className="text-base font-extrabold text-white mt-1.5 flex items-center gap-2">
-                                <span>🧠</span> AI Skill Assessment Test
-                              </h3>
-                            </div>
-
-                            {aiTestMode !== "idle" && (
-                              <button
-                                type="button"
-                                onClick={handleResetInlineAITest}
-                                className="text-xs font-bold text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-750 transition-all border border-slate-700/50 cursor-pointer self-start sm:self-auto"
-                              >
-                                Reset Test
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Error Alert */}
-                          {aiTestError && (
-                            <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs font-semibold text-rose-300 flex items-center gap-2">
-                              <span>⚠️</span> {aiTestError}
-                            </div>
-                          )}
-
-                          {/* STATE 1: IDLE */}
-                          {aiTestMode === "idle" && (
-                            <div className="space-y-4 py-1">
-                              <div className="p-5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-3">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xl">🎯</span>
-                                  <h4 className="text-sm font-bold text-white">
-                                    Assessment for:{" "}
-                                    <span className="text-blue-400">
-                                      All {currentSkillsAndSuggestions.skills.length} Identified Skills
-                                    </span>
-                                  </h4>
-                                </div>
-                                <p className="text-xs text-slate-300 leading-relaxed">
-                                  This automated test evaluates <strong className="text-white font-bold">all your identified skills together</strong> with a minimum of 3 questions per skill. You must achieve <strong className="text-emerald-400 font-bold">70% or above</strong> on the combined assessment to verify your skill proficiency and earn verified badges on your profile.
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* STATE 2: LOADING */}
-                          {aiTestMode === "loading" && (
-                            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                              <span className="w-10 h-10 rounded-full border-3 border-violet-500/20 border-t-violet-500 animate-spin"></span>
-                              <div className="text-center space-y-1">
-                                <p className="text-xs font-bold text-white">
-                                  Generating AI Assessment for {aiTestTargetSkill === "ALL_SKILLS" ? "All Skills" : aiTestTargetSkill}...
-                                </p>
-                                <p className="text-[11px] text-slate-400">
-                                  Curating at least 3 high-quality technical questions per skill...
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* STATE 3: QUIZ IN-PROGRESS */}
-                          {aiTestMode === "quiz" && aiTestQuestions.length > 0 && (
-                            <div className="space-y-4 animate-fade-in">
-                              {/* Quiz Header Bar */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="font-bold text-slate-300">
-                                    Question {aiTestCurrentIdx + 1} of {aiTestQuestions.length}
-                                  </span>
-                                  <span className="font-extrabold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
-                                    Skill: {aiTestQuestions[aiTestCurrentIdx]?.skill || aiTestTargetSkill}
-                                  </span>
-                                </div>
-                                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all duration-300"
-                                    style={{
-                                      width: `${((aiTestCurrentIdx + 1) / aiTestQuestions.length) * 100}%`,
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
-
-                              {/* Question Card */}
-                              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
-                                <h4 className="text-sm font-bold text-white leading-relaxed">
-                                  {aiTestQuestions[aiTestCurrentIdx].question}
-                                </h4>
-
-                                {/* MCQ Options */}
-                                <div className="space-y-2">
-                                  {aiTestQuestions[aiTestCurrentIdx].options.map((opt, optIdx) => {
-                                    const isSelected = aiTestSelectedAnswers[aiTestCurrentIdx] === optIdx;
-                                    return (
-                                      <button
-                                        key={optIdx}
-                                        type="button"
-                                        onClick={() => {
-                                          setAiTestSelectedAnswers((prev) => ({
-                                            ...prev,
-                                            [aiTestCurrentIdx]: optIdx,
-                                          }));
-                                        }}
-                                        className={`w-full p-3 rounded-xl border text-left text-xs font-semibold transition-all flex items-center gap-3 cursor-pointer ${
-                                          isSelected
-                                            ? "bg-blue-600/20 border-blue-500 text-white shadow-md shadow-blue-500/10"
-                                            : "bg-slate-900/60 border-slate-800/90 text-slate-300 hover:bg-slate-850 hover:border-slate-700"
-                                        }`}
-                                      >
-                                        <span
-                                          className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold shrink-0 transition-colors ${
-                                            isSelected
-                                              ? "border-blue-400 bg-blue-500 text-white"
-                                              : "border-slate-700 bg-slate-800 text-slate-400"
-                                          }`}
-                                        >
-                                          {String.fromCharCode(65 + optIdx)}
-                                        </span>
-                                        <span className="leading-snug">{opt}</span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              {/* Quiz Footer Navigation */}
-                              <div className="flex items-center justify-between pt-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setAiTestCurrentIdx((prev) => Math.max(0, prev - 1))}
-                                  disabled={aiTestCurrentIdx === 0}
-                                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-xs font-bold text-slate-300 disabled:opacity-40 transition-all cursor-pointer"
+                              return (
+                                <div
+                                  key={skill}
+                                  className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-all"
                                 >
-                                  ← Previous
-                                </button>
+                                  <span className="text-xs font-bold text-white capitalize">{skill}</span>
 
-                                <span className="text-[11px] text-slate-400 font-medium">
-                                  Answered: {Object.keys(aiTestSelectedAnswers).length} / {aiTestQuestions.length}
-                                </span>
-
-                                {aiTestCurrentIdx < aiTestQuestions.length - 1 ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => setAiTestCurrentIdx((prev) => prev + 1)}
-                                    className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition-all cursor-pointer"
-                                  >
-                                    Next →
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={handleSubmitInlineAITest}
-                                    disabled={aiTestSubmitting}
-                                    className="px-6 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-extrabold text-white transition-all shadow-lg shadow-emerald-600/20 cursor-pointer disabled:opacity-60"
-                                  >
-                                    {aiTestSubmitting ? "Scoring..." : "Submit Test ✓"}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* STATE 4: RESULT SCREEN */}
-                          {aiTestMode === "result" && aiTestResult && (
-                            <div className="space-y-4 animate-fade-in py-1">
-                              {aiTestResult.passed ? (
-                                /* PASSING: Score >= 70% */
-                                <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-2xl p-6 text-center space-y-3.5">
-                                  <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center text-3xl text-emerald-400 shadow-lg shadow-emerald-500/20">
-                                    ✅
-                                  </div>
-                                  <div>
-                                    <span className="text-xs font-black uppercase tracking-wider px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                      Passed &amp; Skill Verified (70%+ Achieved)
+                                  {isCert && (
+                                    <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                      <span>Verified by Certificate</span> <span>✅</span>
                                     </span>
-                                    <h3 className="text-2xl font-black text-white mt-2">
-                                      {aiTestResult.score} / {aiTestResult.total} ({aiTestResult.percentage}%)
-                                    </h3>
-                                    <p className="text-xs font-semibold text-emerald-300 mt-1 max-w-md mx-auto">
-                                      Great work! You scored {aiTestResult.percentage}% (requirement: 70%+). Your proficiency in <strong className="text-white font-bold">{aiTestResult.skill_name}</strong> has been officially verified.
-                                    </p>
-                                  </div>
+                                  )}
 
-                                  <div className="pt-2 flex justify-center gap-3">
-                                    <button
-                                      type="button"
-                                      onClick={handleResetInlineAITest}
-                                      className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all cursor-pointer shadow-md shadow-emerald-600/20"
-                                    >
-                                      Take Another Test
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                /* FAILING: Score < 70% */
-                                <div className="space-y-4">
-                                  <div className="bg-rose-950/30 border border-rose-500/30 rounded-2xl p-5 text-center space-y-2">
-                                    <span className="text-[10px] font-black uppercase px-3 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                                      Score Below 70% • Not Verified
+                                  {isTest && (
+                                    <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                      <span>Verified by AI Test ({sVer.score || 5}/5)</span> <span>✅</span>
                                     </span>
-                                    <h3 className="text-2xl font-black text-rose-400 mt-1">
-                                      {aiTestResult.score} / {aiTestResult.total} ({aiTestResult.percentage}%)
-                                    </h3>
-                                    <p className="text-xs font-semibold text-rose-300 max-w-md mx-auto leading-relaxed">
-                                      You scored {aiTestResult.percentage}%. A minimum of 70% is required to verify this skill. Please review the suggested resources below and try again.
-                                    </p>
-                                  </div>
+                                  )}
 
-                                  {/* Learning Resources */}
-                                  {aiTestResult.learning_resources && aiTestResult.learning_resources.length > 0 && (
-                                    <div className="space-y-2.5">
-                                      <h5 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                                        <span>📚</span> Recommended Learning Resources
-                                      </h5>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                        {aiTestResult.learning_resources.map((res: any, idx: number) => (
-                                          <div
-                                            key={idx}
-                                            className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between gap-2 hover:border-slate-700 transition-all"
-                                          >
-                                            <div>
-                                              <span className="text-xs font-bold text-white block">{res.title}</span>
-                                              <span className="text-[10px] text-slate-400 block mt-0.5">
-                                                {res.type} • {res.difficulty}
-                                              </span>
-                                            </div>
-                                            <a
-                                              href={res.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-[11px] font-bold text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
-                                            >
-                                              Open Resource ↗
-                                            </a>
-                                          </div>
-                                        ))}
-                                      </div>
+                                  {isFailed && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded-lg">
+                                        Learning Recommended ⚠️
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedSkillToVerify(skill)}
+                                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-[10px] font-bold text-white transition-all cursor-pointer shadow-sm"
+                                      >
+                                        Verify Skill
+                                      </button>
                                     </div>
                                   )}
 
-                                  <div className="pt-2 text-center">
+                                  {!isCert && !isTest && !isFailed && (
                                     <button
                                       type="button"
-                                      onClick={() => handleStartInlineAITest("ALL_SKILLS")}
-                                      className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+                                      onClick={() => setSelectedSkillToVerify(skill)}
+                                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-[11px] font-bold text-white transition-all shadow-md shadow-blue-500/20 flex items-center gap-1 cursor-pointer"
                                     >
-                                      🔁 Retake Full Skills Test
+                                      <span>🛡️</span> Verify Skill
                                     </button>
-                                  </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Start Button Pinned to Bottom for Idle State */}
-                        {aiTestMode === "idle" && (
-                          <div className="pt-3 border-t border-slate-800/80">
-                            <button
-                              type="button"
-                              onClick={() => handleStartInlineAITest("ALL_SKILLS")}
-                              disabled={currentSkillsAndSuggestions.skills.length === 0}
-                              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold text-xs tracking-wide transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center cursor-pointer disabled:opacity-50"
-                            >
-                              Start Full Assessment
-                            </button>
+                              );
+                            })}
                           </div>
+                        ) : (
+                          <p className="text-xs text-slate-500 italic py-6 text-center">No skills identified yet.</p>
                         )}
                       </div>
-                    </div>
 
-                    {/* 2. HORIZONTAL ATS SUGGESTIONS (BELOW SKILLS & AI TEST) */}
-                    <div className="rounded-2xl bg-slate-900/40 border border-amber-500/20 p-5 mt-6">
-                      <div className="flex items-center justify-between mb-3.5">
-                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-amber-400">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 5.25h.008v-.008H12v.008ZM12 13V9.75m0 3.25h.008v-.008H12v.008ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                      {/* ATS Suggestions */}
+                      <div className="rounded-2xl bg-slate-900/40 border border-slate-850 p-6">
+                        <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-emerald-400">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                           </svg>
-                          <span>ATS Suggestions ({currentSkillsAndSuggestions.suggestions.length})</span>
+                          ATS Improvement Suggestions ({currentSkillsAndSuggestions.suggestions.length})
                         </h4>
-                        <span className="text-[10px] font-bold text-amber-400/90 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
-                          Optimization Recommendations
-                        </span>
+                        {currentSkillsAndSuggestions.suggestions.length > 0 ? (
+                          <div className="space-y-3">
+                            {currentSkillsAndSuggestions.suggestions.map((sug, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-amber-500/40 transition-all text-xs text-slate-300 leading-relaxed"
+                              >
+                                <span className="w-2 h-2 rounded-full bg-amber-400 mt-1 flex-shrink-0 shadow-sm shadow-amber-400/50"></span>
+                                <span>{sug}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5 py-1">
+                            <span>✨</span> Excellent parser rating! No critical suggestions needed.
+                          </p>
+                        )}
                       </div>
-
-                      {currentSkillsAndSuggestions.suggestions.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {currentSkillsAndSuggestions.suggestions.map((sug, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-amber-500/40 transition-all text-xs text-slate-300 leading-relaxed"
-                            >
-                              <span className="w-2 h-2 rounded-full bg-amber-400 mt-1 flex-shrink-0 shadow-sm shadow-amber-400/50"></span>
-                              <span>{sug}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5 py-1">
-                          <span>✨</span> Excellent parser rating! No critical suggestions needed.
-                        </p>
-                      )}
                     </div>
                   </div>
                 ) : (

@@ -23,18 +23,72 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 class GenerateTestRequest(BaseModel):
     skill_name: Optional[str] = None
     skills: Optional[List[str]] = None
-    num_questions: Optional[int] = 3
+    num_questions: Optional[int] = 5
 
 
 class SubmitTestRequest(BaseModel):
     skill_name: str
     score: int
-    total: int = 3
+    total: int = 5
     resume_id: Optional[int] = None
     skills_passed: Optional[List[str]] = None
 
 
 CURATED_SKILL_QUESTIONS = {
+    "c": [
+        {
+            "question": "Which operator is used in C to get the memory address of a variable?",
+            "options": ["*", "&", "->", "%"],
+            "correct_index": 1
+        },
+        {
+            "question": "Which standard library function dynamically allocates memory without initializing it to zero?",
+            "options": ["calloc()", "malloc()", "realloc()", "alloc()"],
+            "correct_index": 1
+        },
+        {
+            "question": "What is the terminating character of a string in C?",
+            "options": ["'\\0'", "'\\n'", "'EOF'", "';'"],
+            "correct_index": 0
+        },
+        {
+            "question": "What is the return type of the standard malloc() function in C?",
+            "options": ["void*", "int*", "char*", "size_t"],
+            "correct_index": 0
+        },
+        {
+            "question": "Which keyword is used in C to prevent any modification to a variable's value?",
+            "options": ["static", "const", "volatile", "immutable"],
+            "correct_index": 1
+        }
+    ],
+    "cpp": [
+        {
+            "question": "What does RAII stand for in modern C++?",
+            "options": ["Resource Acquisition Is Initialization", "Runtime Allocations In Instances", "Recursive Algorithm Iteration Index", "Refactored Access In Interfaces"],
+            "correct_index": 0
+        },
+        {
+            "question": "Which smart pointer should be used for exclusive ownership of a dynamically allocated object?",
+            "options": ["std::shared_ptr", "std::weak_ptr", "std::unique_ptr", "std::auto_ptr"],
+            "correct_index": 2
+        },
+        {
+            "question": "Which keyword allows a derived class method to override a base class method dynamically at runtime?",
+            "options": ["static", "virtual", "inline", "extern"],
+            "correct_index": 1
+        },
+        {
+            "question": "What is the default member access level in a C++ 'class' versus a 'struct'?",
+            "options": ["class is private by default, struct is public by default", "Both are public by default", "Both are private by default", "class is protected by default, struct is private by default"],
+            "correct_index": 0
+        },
+        {
+            "question": "Which keyword enables writing generic functions and classes in C++?",
+            "options": ["generic", "template", "typename", "virtual"],
+            "correct_index": 1
+        }
+    ],
     "python": [
         {
             "question": "What is the primary difference between a list and a tuple in Python?",
@@ -50,6 +104,16 @@ CURATED_SKILL_QUESTIONS = {
             "question": "How does Python handle memory management for unused objects?",
             "options": ["Manual deallocation with free()", "Reference counting with a cycle-detecting garbage collector", "Static compile-time memory maps", "Operating system swap only"],
             "correct_index": 1
+        },
+        {
+            "question": "Which decorator in Python is used to define a method that receives the class itself as its first argument?",
+            "options": ["@staticmethod", "@classmethod", "@property", "@abstractmethod"],
+            "correct_index": 1
+        },
+        {
+            "question": "What is the average time complexity of looking up a key in a standard Python dictionary?",
+            "options": ["O(1)", "O(log n)", "O(n)", "O(n log n)"],
+            "correct_index": 0
         }
     ],
     "java": [
@@ -67,6 +131,16 @@ CURATED_SKILL_QUESTIONS = {
             "question": "Which data structure in Java does NOT allow duplicate elements?",
             "options": ["ArrayList", "LinkedList", "HashSet", "Vector"],
             "correct_index": 2
+        },
+        {
+            "question": "In Java, which exception type is an unchecked exception (does not require mandatory catch or throws)?",
+            "options": ["IOException", "SQLException", "RuntimeException", "ClassNotFoundException"],
+            "correct_index": 2
+        },
+        {
+            "question": "What is the primary component of the JVM responsible for converting frequently executed bytecode into native machine instructions?",
+            "options": ["Class Loader", "Just-In-Time (JIT) Compiler", "Garbage Collector", "Bytecode Verifier"],
+            "correct_index": 1
         }
     ],
     "javascript": [
@@ -84,39 +158,15 @@ CURATED_SKILL_QUESTIONS = {
             "question": "What is a closure in JavaScript?",
             "options": ["A function bundled together with references to its lexical environment", "A syntax error when a curly bracket is omitted", "A method to close browser tabs", "A built-in JSON parser"],
             "correct_index": 0
-        }
-    ],
-    "c": [
-        {
-            "question": "Which operator is used in C to get the memory address of a variable?",
-            "options": ["*", "&", "->", "%"],
-            "correct_index": 1
         },
         {
-            "question": "Which standard library function dynamically allocates memory without initializing it to zero?",
-            "options": ["calloc()", "malloc()", "realloc()", "alloc()"],
-            "correct_index": 1
-        },
-        {
-            "question": "What is the terminating character of a C string?",
-            "options": ["'\\0'", "'\\n'", "'EOF'", "';'"],
-            "correct_index": 0
-        }
-    ],
-    "cpp": [
-        {
-            "question": "What does RAII stand for in modern C++?",
-            "options": ["Resource Acquisition Is Initialization", "Runtime Allocations In Instances", "Recursive Algorithm Iteration Index", "Refactored Access In Interfaces"],
+            "question": "What is the behavior of Promise.all() in JavaScript?",
+            "options": ["Fulfills when all promises resolve, or rejects immediately when any promise rejects", "Waits for all promises to settle regardless of rejection", "Returns only the first resolved promise", "Executes promises synchronously"],
             "correct_index": 0
         },
         {
-            "question": "Which smart pointer should be used for exclusive ownership of a dynamically allocated object?",
-            "options": ["std::shared_ptr", "std::weak_ptr", "std::unique_ptr", "std::auto_ptr"],
-            "correct_index": 2
-        },
-        {
-            "question": "Which keyword allows a derived class method to override a base class method dynamically at runtime?",
-            "options": ["static", "virtual", "inline", "extern"],
+            "question": "Which keyword declarations introduce block-scoped variables in modern JavaScript?",
+            "options": ["var only", "let and const", "function and var", "global and local"],
             "correct_index": 1
         }
     ],
@@ -135,6 +185,16 @@ CURATED_SKILL_QUESTIONS = {
             "question": "Which attribute in a form input specifies that an input field must be filled out before submitting?",
             "options": ["validate", "mandatory", "required", "checked"],
             "correct_index": 2
+        },
+        {
+            "question": "Which HTML5 semantic element should be used for standalone, distributable content like articles or blog posts?",
+            "options": ["<article>", "<div>", "<aside>", "<main>"],
+            "correct_index": 0
+        },
+        {
+            "question": "Which element provides a caption or legend for a <figure> element in HTML5?",
+            "options": ["<caption>", "<figcaption>", "<title>", "<summary>"],
+            "correct_index": 1
         }
     ],
     "css": [
@@ -152,6 +212,16 @@ CURATED_SKILL_QUESTIONS = {
             "question": "What CSS property controls the stacking order of positioned elements along the z-axis?",
             "options": ["z-index", "elevation", "layer-order", "position-depth"],
             "correct_index": 0
+        },
+        {
+            "question": "In CSS Grid layout, which flexible unit represents a fraction of the available free space in the grid container?",
+            "options": ["%", "em", "fr", "vw"],
+            "correct_index": 2
+        },
+        {
+            "question": "Which CSS pseudo-class matches elements only when focused via keyboard navigation (such as Tab)?",
+            "options": [":focus", ":focus-visible", ":active", ":hover"],
+            "correct_index": 1
         }
     ],
     "react": [
@@ -168,6 +238,16 @@ CURATED_SKILL_QUESTIONS = {
         {
             "question": "How should state updates that depend on previous state values be performed in React?",
             "options": ["Pass an updater callback function to setState (e.g. setCount(prev => prev + 1))", "Directly mutate state.variable", "Call forceUpdate() immediately", "Use window.location.reload()"],
+            "correct_index": 0
+        },
+        {
+            "question": "Which React hook is designed to memoize the result of an expensive calculation between renders?",
+            "options": ["useCallback", "useMemo", "useRef", "useEffect"],
+            "correct_index": 1
+        },
+        {
+            "question": "What is the fundamental difference between controlled and uncontrolled form inputs in React?",
+            "options": ["Controlled inputs have their values driven by React state; uncontrolled inputs store their own state in the DOM", "Controlled inputs do not support onChange handlers", "Uncontrolled inputs cannot be submitted in HTML forms", "Both behave identically in React 18"],
             "correct_index": 0
         }
     ],
@@ -186,12 +266,22 @@ CURATED_SKILL_QUESTIONS = {
             "question": "What is the primary benefit of creating an index on a database column?",
             "options": ["Speeds up data retrieval queries (SELECT)", "Reduces the disk storage used by the table", "Prevents duplicate values automatically across all columns", "Speeds up write operations (INSERT/UPDATE)"],
             "correct_index": 0
+        },
+        {
+            "question": "Which SQL constraint ensures that all values in a column are distinct and cannot be NULL?",
+            "options": ["UNIQUE", "PRIMARY KEY", "CHECK", "FOREIGN KEY"],
+            "correct_index": 1
+        },
+        {
+            "question": "Which SQL statement is used to remove all records from a table without logging individual row deletions?",
+            "options": ["DROP TABLE", "DELETE FROM", "TRUNCATE TABLE", "REMOVE ALL"],
+            "correct_index": 2
         }
     ]
 }
 
 
-def build_fallback_for_skill(skill: str, start_id: int = 1, min_q: int = 3):
+def build_fallback_for_skill(skill: str, start_id: int = 1, min_q: int = 5):
     skill_clean = skill.strip().lower()
     if skill_clean in CURATED_SKILL_QUESTIONS:
         curated = CURATED_SKILL_QUESTIONS[skill_clean]
@@ -206,7 +296,7 @@ def build_fallback_for_skill(skill: str, start_id: int = 1, min_q: int = 3):
             })
         return res
 
-    # Generic technical interview MCQs with minimum 3 questions
+    # Generic technical interview MCQs with minimum 5 questions
     return [
         {
             "id": start_id,
@@ -243,6 +333,30 @@ def build_fallback_for_skill(skill: str, start_id: int = 1, min_q: int = 3):
                 "Deploying manual binaries without version control tags"
             ],
             "correct_index": 2
+        },
+        {
+            "id": start_id + 3,
+            "skill": skill.capitalize(),
+            "question": f"In {skill}, how should security vulnerabilities such as injection or unauthorized access be prevented?",
+            "options": [
+                f"By validating all user inputs, using parameterized interfaces, and following least privilege in {skill}",
+                "By trusting all incoming client data unconditionally",
+                "By disabling input sanitization to improve throughput",
+                "By exposing internal error traces directly to clients"
+            ],
+            "correct_index": 0
+        },
+        {
+            "id": start_id + 4,
+            "skill": skill.capitalize(),
+            "question": f"What is a fundamental debugging and profiling practice when analyzing bottlenecks in {skill}?",
+            "options": [
+                "Guessing without measuring execution metrics",
+                f"Utilizing structured logging, APM profilers, and performance benchmarks in {skill}",
+                "Removing all log statements from production builds",
+                "Relying solely on user complaints to identify errors"
+            ],
+            "correct_index": 1
         }
     ]
 
@@ -411,9 +525,9 @@ def generate_test(
     body: GenerateTestRequest,
     current_user: User = Depends(get_current_user),
 ):
-    min_q = max(body.num_questions or 3, 3)
+    min_q = max(body.num_questions or 5, 5)
 
-    # Multi-skill test generation (at least 3 questions per skill)
+    # Multi-skill test generation
     if body.skills and len(body.skills) > 0:
         cleaned_skills = [s.strip() for s in body.skills if s.strip()]
         try:
@@ -427,7 +541,7 @@ def generate_test(
         except Exception as e:
             print("Gemini multi-skill test generation error:", e)
 
-        # Fallback ensuring strictly minimum 3 questions per skill
+        # Fallback ensuring strictly 5 questions per skill
         all_fallback = []
         cur_id = 1
         for s in cleaned_skills:
@@ -440,7 +554,7 @@ def generate_test(
             "questions": all_fallback
         }
 
-    # Single skill test generation (minimum 3 questions)
+    # Single skill test generation (5 questions)
     target_skill = body.skill_name or "General Technology"
     try:
         raw_json = generate_skill_mcq_test(target_skill, num_questions=min_q)
@@ -466,9 +580,9 @@ def submit_test(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Strict rule: 70% or above required to achieve skill verification
+    # Passing rule: At least 3 correct out of 5 questions (>= 60%)
     total_q = max(body.total, 1)
-    passed = (body.score / total_q) >= 0.70
+    passed = (body.score >= 3) if total_q == 5 else ((body.score / total_q) >= 0.60)
     status_str = "verified_ai_test" if passed else "learning_recommended"
     resources = None
 

@@ -188,8 +188,8 @@ Step 4: Target Companies & Job Roles:
 # -----------------------------
 # Skill Test MCQ Generator
 # -----------------------------
-def generate_skill_mcq_test(skill_name: str, num_questions: int = 3):
-    count = max(num_questions, 3)
+def generate_skill_mcq_test(skill_name: str, num_questions: int = 5):
+    count = max(num_questions, 5)
     prompt = f"""
 You are an expert Technical Interviewer.
 Generate {count} multiple-choice questions (MCQs) to evaluate a candidate's proficiency in '{skill_name}'.
