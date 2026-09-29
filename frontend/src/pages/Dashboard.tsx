@@ -217,7 +217,7 @@ function Dashboard() {
 
   // Navigation state
   const [activeTab, setActiveTab] = useState<
-    "overview" | "upload" | "history" | "job-match" | "chatbot" | "interview" | "roadmap" | "recruiter" | "profile"
+    "overview" | "upload" | "history" | "job-match" | "chatbot" | "roadmap" | "recruiter" | "profile"
   >("overview");
 
   // Data states
@@ -241,13 +241,6 @@ function Dashboard() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
-
-  // AI Mock Interview states
-  const [interviewQuestion, setInterviewQuestion] = useState("Tell me about yourself and your background.");
-  const [customQuestion, setCustomQuestion] = useState("");
-  const [interviewAnswer, setInterviewAnswer] = useState("");
-  const [interviewFeedback, setInterviewFeedback] = useState("");
-  const [interviewLoading, setInterviewLoading] = useState(false);
 
   // AI Career Roadmap states
   const [careerRoadmap, setCareerRoadmap] = useState("");
@@ -829,33 +822,6 @@ function Dashboard() {
       ]);
     } finally {
       setChatLoading(false);
-    }
-  };
-
-  // Submit interview answer
-  const submitInterview = async () => {
-    const questionText = interviewQuestion === "custom" ? customQuestion : interviewQuestion;
-    if (!questionText.trim() || !interviewAnswer.trim() || interviewLoading) return;
-
-    setInterviewLoading(true);
-    setInterviewFeedback("");
-    try {
-      const res = await api.post("/ai/interview/feedback", {
-        question: questionText,
-        answer: interviewAnswer,
-        resume_text: selectedResume?.extracted_text || "",
-      });
-
-      if (res.data.success) {
-        setInterviewFeedback(res.data.feedback);
-      } else {
-        setInterviewFeedback("Failed to evaluate answer.");
-      }
-    } catch (err) {
-      console.error("Interview feedback error:", err);
-      setInterviewFeedback("Error generating feedback. Make sure backend is running with Gemini API key.");
-    } finally {
-      setInterviewLoading(false);
     }
   };
 
@@ -1458,20 +1424,6 @@ function Dashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" />
                   </svg>
                   AI Chatbot
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("interview")}
-                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                    activeTab === "interview"
-                      ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.9c2.785 0 5.5-.233 8.15-.666a60.443 60.443 0 0 0-.49-6.347m-15.4 0A48.667 48.667 0 0 0 1.5 10.143L12 3.75l10.5 6.393a48.667 48.667 0 0 0-3.66 3.65m-14.58 0C3.903 12.35 4.59 10.3 5.26 10.147m13.48 0c.67.153 1.356 2.203 1.58 3.65m-15.06 0a49.08 49.08 0 0 1 15.06 0M12 14.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" />
-                  </svg>
-                  Mock Interview
                 </button>
 
                 <button
@@ -2639,120 +2591,7 @@ function Dashboard() {
           </div>
         )}
 
-        {/* 6. MOCK INTERVIEW TAB */}
-        {activeTab === "interview" && (
-          <div className="space-y-8 animate-fade-in">
-            <div>
-              <h1 className="text-4xl font-extrabold tracking-tight text-white">
-                Mock Interview Coach
-              </h1>
-              <p className="text-slate-400 mt-1.5 text-sm">
-                Select a topic, type your answer, and receive rating evaluation feedback.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Question list & submission */}
-              <div className="space-y-6">
-                <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 space-y-4.5">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                      Select Question Topic
-                    </label>
-                    <select
-                      value={interviewQuestion}
-                      onChange={(e) => setInterviewQuestion(e.target.value)}
-                      className="w-full bg-slate-950/60 rounded-xl border border-slate-800 p-3 text-xs text-white outline-none focus:border-blue-500 transition-all font-sans"
-                    >
-                      <option value="Tell me about yourself and your background.">Introduction: Tell me about yourself</option>
-                      <option value="Describe a challenging technical project you worked on and how you resolved a blocker.">Project: Challenging tech project & blockers</option>
-                      <option value="How do you keep up with new tech stacks and choose what to learn next?">Growth: Staying up to date with new tech</option>
-                      <option value="Why do you want to join our company as a software developer?">Culture: Why join us?</option>
-                      <option value="custom">Custom Question (Enter below)</option>
-                    </select>
-                  </div>
-
-                  {interviewQuestion === "custom" && (
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                        Your Custom Question
-                      </label>
-                      <input
-                        type="text"
-                        value={customQuestion}
-                        onChange={(e) => setCustomQuestion(e.target.value)}
-                        placeholder="e.g., Explain the difference between process and thread."
-                        className="w-full bg-slate-950/60 rounded-xl border border-slate-800 p-3.5 text-xs text-white placeholder-slate-650 outline-none focus:border-blue-500 transition-all"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                      Your Answer
-                    </label>
-                    <textarea
-                      rows={8}
-                      value={interviewAnswer}
-                      onChange={(e) => setInterviewAnswer(e.target.value)}
-                      placeholder="Type your structured answer here (Try using STAR methodology: Situation, Task, Action, Result)..."
-                      className="w-full bg-slate-950/60 rounded-xl border border-slate-800 p-4 text-xs text-white placeholder-slate-600 outline-none focus:border-blue-500 transition-all font-sans leading-relaxed"
-                      required
-                    />
-                  </div>
-
-                  <button
-                    onClick={submitInterview}
-                    disabled={!interviewAnswer.trim() || (interviewQuestion === "custom" && !customQuestion.trim()) || interviewLoading}
-                    className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 py-3 font-bold text-xs text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/10"
-                  >
-                    {interviewLoading ? (
-                      <>
-                        <span className="w-3.5 h-3.5 rounded-full border border-white/30 border-t-white animate-spin"></span>
-                        Evaluating response...
-                      </>
-                    ) : (
-                      "Submit Response for Audit"
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Feedback outputs */}
-              <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6 min-h-[400px] flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-violet-400">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 5.25h.008v-.008H12v.008ZM12 13V9.75m0 3.25h.008v-.008H12v.008ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    </svg>
-                    Evaluation Feedback
-                  </h3>
-
-                  {interviewLoading && (
-                    <div className="flex flex-col items-center justify-center py-20 space-y-3">
-                      <span className="w-8 h-8 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin"></span>
-                      <span className="text-xs text-slate-500 font-medium">Interviewer compiling scoring matrix...</span>
-                    </div>
-                  )}
-
-                  {interviewFeedback && !interviewLoading && (
-                    <div className="bg-slate-950/70 border border-slate-850/80 rounded-xl p-5 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed max-h-[450px] overflow-y-auto font-sans">
-                      {interviewFeedback}
-                    </div>
-                  )}
-
-                  {!interviewFeedback && !interviewLoading && (
-                    <p className="text-xs text-slate-500 italic text-center py-20">
-                      Submit your interview answer on the left to see ratings, strengths, recommendations, and model answers.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 7. CAREER ROADMAP TAB */}
+        {/* 6. CAREER ROADMAP TAB */}
         {activeTab === "roadmap" && (
           <div className="space-y-8 animate-fade-in">
             <div>
