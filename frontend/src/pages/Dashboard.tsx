@@ -232,35 +232,6 @@ function Dashboard() {
   const [matchLoading, setMatchLoading] = useState<boolean>(false);
   const [resumeSelecting, setResumeSelecting] = useState<boolean>(false);
 
-  // Gemini AI Deep Audit states
-  const [geminiAuditLoading, setGeminiAuditLoading] = useState(false);
-  const [geminiAuditResult, setGeminiAuditResult] = useState<any | null>(null);
-  const [geminiAuditError, setGeminiAuditError] = useState("");
-
-  const runGeminiDeepAudit = async () => {
-    if (!selectedResume?.extracted_text) return;
-    setGeminiAuditLoading(true);
-    setGeminiAuditError("");
-    try {
-      const res = await api.post("/ai/analyze", {
-        resume_text: selectedResume.extracted_text,
-      });
-      if (res.data?.success && res.data?.analysis) {
-        setGeminiAuditResult(res.data.analysis);
-      } else {
-        setGeminiAuditError("Unable to load AI Audit results.");
-      }
-    } catch (err: any) {
-      console.error("Gemini Deep Audit error:", err);
-      setGeminiAuditError(
-        err.response?.data?.detail || "Failed to run AI Deep Audit. Ensure backend is running."
-      );
-    } finally {
-      setGeminiAuditLoading(false);
-    }
-  };
-
-
   // AI Chatbot states
   const [chatHistory, setChatHistory] = useState<{ sender: "user" | "advisor"; text: string }[]>([
     {
@@ -2050,56 +2021,6 @@ function Dashboard() {
                         </div>
                       </div>
 
-                      {/* 1. Resume Health Category Breakdown (11 Categories) */}
-                      <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                            <span>📊</span> Resume Health Scorecards (11 Dimensions)
-                          </h4>
-                          <span className="text-[11px] text-slate-400">
-                            Total Score: <strong className="text-white">{effectiveAtsScore}/100</strong>
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                          {[
-                            { key: "contact", label: "Contact Info", max: atsAnalysis?.category_max_scores?.contact || 5 },
-                            { key: "summary", label: "Summary", max: atsAnalysis?.category_max_scores?.summary || 10 },
-                            { key: "skills", label: "Skills", max: atsAnalysis?.category_max_scores?.skills || 15 },
-                            { key: "experience", label: "Experience", max: atsAnalysis?.category_max_scores?.experience || 20 },
-                            { key: "projects", label: "Projects", max: atsAnalysis?.category_max_scores?.projects || 15 },
-                            { key: "education", label: "Education", max: atsAnalysis?.category_max_scores?.education || 10 },
-                            { key: "certifications", label: "Certifications", max: atsAnalysis?.category_max_scores?.certifications || 5 },
-                            { key: "achievements", label: "Achievements", max: atsAnalysis?.category_max_scores?.achievements || 5 },
-                            { key: "keywords", label: "Keywords", max: atsAnalysis?.category_max_scores?.keywords || 5 },
-                            { key: "formatting", label: "Formatting", max: atsAnalysis?.category_max_scores?.formatting || 5 },
-                            { key: "links", label: "Links", max: atsAnalysis?.category_max_scores?.links || 5 },
-                          ].map((cat) => {
-                            const val = atsAnalysis?.category_scores?.[cat.key] ?? 0;
-                            const pct = Math.round((val / cat.max) * 100);
-                            return (
-                              <div
-                                key={cat.key}
-                                className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition-all"
-                              >
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <span className="text-[11px] font-semibold text-slate-300 truncate">{cat.label}</span>
-                                  <span className="text-xs font-black text-white">{val}/{cat.max}</span>
-                                </div>
-                                <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full transition-all duration-700 ${
-                                      pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-blue-500" : "bg-amber-500"
-                                    }`}
-                                    style={{ width: `${pct}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
                       {/* 2. "Why this score?" (Strengths & Points Lost) */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Strengths / Points Gained */}
@@ -2346,99 +2267,6 @@ function Dashboard() {
                           </p>
                         </div>
                       )}
-
-                      {/* 5. Gemini AI Deep Audit Section */}
-                      <div className="rounded-2xl bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-950 border border-indigo-500/20 p-6 space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">🤖</span>
-                              <h4 className="text-sm font-bold text-white">Gemini 2.5 Flash Deep Review</h4>
-                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold uppercase tracking-wider">
-                                Multimodal AI
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-400 mt-1">
-                              Run deep neural inspection on full resume text for role alignment, architectural critique, and tailored interview prep.
-                            </p>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={runGeminiDeepAudit}
-                            disabled={geminiAuditLoading}
-                            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-xs font-bold text-white transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer flex-shrink-0 disabled:opacity-50"
-                          >
-                            {geminiAuditLoading ? (
-                              <>
-                                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                <span>Analyzing with Gemini...</span>
-                              </>
-                            ) : (
-                              <>
-                                <span>⚡</span>
-                                <span>{geminiAuditResult ? "Re-Run AI Deep Audit" : "Run AI Deep Audit"}</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-
-                        {geminiAuditError && (
-                          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
-                            {geminiAuditError}
-                          </div>
-                        )}
-
-                        {geminiAuditResult && (
-                          <div className="space-y-4 pt-4 border-t border-slate-800/80 animate-fade-in">
-                            {/* Executive Summary */}
-                            {geminiAuditResult.summary && (
-                              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
-                                <span className="text-[10px] text-indigo-400 uppercase font-black tracking-wider block mb-1">
-                                  AI Executive Summary
-                                </span>
-                                <p className="text-xs text-slate-200 leading-relaxed">
-                                  {geminiAuditResult.summary}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Recommendations Grid */}
-                            {geminiAuditResult.recommendations && geminiAuditResult.recommendations.length > 0 && (
-                              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
-                                <span className="text-[10px] text-emerald-400 uppercase font-black tracking-wider block mb-2">
-                                  Priority AI Recommendations
-                                </span>
-                                <ul className="space-y-1.5">
-                                  {geminiAuditResult.recommendations.map((rec: string, idx: number) => (
-                                    <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
-                                      <span className="text-emerald-400 font-bold">→</span>
-                                      <span>{rec}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            {/* Interview Questions */}
-                            {geminiAuditResult.interview_questions && geminiAuditResult.interview_questions.length > 0 && (
-                              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
-                                <span className="text-[10px] text-blue-400 uppercase font-black tracking-wider block mb-2">
-                                  Anticipated Technical Interview Questions
-                                </span>
-                                <div className="space-y-2">
-                                  {geminiAuditResult.interview_questions.map((q: string, idx: number) => (
-                                    <div key={idx} className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-start gap-2">
-                                      <span className="text-blue-400 font-bold">Q{idx + 1}:</span>
-                                      <span>{q.replace(/^\d+[\.\)]\s*/, "")}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
                 ) : (
