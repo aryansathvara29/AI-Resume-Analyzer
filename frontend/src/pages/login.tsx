@@ -70,7 +70,7 @@ function Login() {
         });
 
         localStorage.setItem("token", response.data.access_token);
-        setSuccessMsg(`Account created as ${role === "recruiter" ? "Recruiter" : "Candidate"}! Redirecting...`);
+        setSuccessMsg(`Account created as ${role === "recruiter" ? "Recruiter" : "Job Seeker"}! Redirecting...`);
 
         setTimeout(() => {
           navigate("/dashboard");
@@ -138,72 +138,39 @@ function Login() {
           </p>
         </div>
 
-        {/* 1. TOP ROLE SELECTOR (User vs Recruiter) */}
+        {/* 1. TOP ROLE SELECTOR (Job Seeker vs Recruiter) */}
         <div className="mt-6 mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              {isLogin ? "I am signing in as" : "I am registering as"}
-            </span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              role === "user"
-                ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                : "bg-violet-500/10 text-violet-400 border-violet-500/20"
-            }`}>
-              {role === "user" ? "Candidate Account" : "Recruiter Account"}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* Candidate Card */}
+          <div className="w-full flex items-center justify-around p-1 rounded-xl bg-slate-950/80 border border-slate-800 shadow-inner">
+            {/* Job Seeker Option */}
             <button
               type="button"
               onClick={() => setRole("user")}
-              className={`p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
                 role === "user"
-                  ? "bg-gradient-to-br from-blue-600/20 via-blue-900/30 to-slate-900 border-blue-500 shadow-md shadow-blue-500/15"
-                  : "bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-400"
+                  ? "bg-slate-900 border border-blue-500/40 text-blue-400 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent"
               }`}
             >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xl">🎓</span>
-                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                  role === "user" ? "border-blue-400 bg-blue-500" : "border-slate-700 bg-slate-900"
-                }`}>
-                  {role === "user" && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
-                </span>
-              </div>
-              <div className={`text-xs font-bold ${role === "user" ? "text-white" : "text-slate-300"}`}>
-                Candidate / User
-              </div>
-              <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
-                Upload resumes & verify skills
-              </p>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 ${role === "user" ? "text-blue-400" : "text-slate-500"}`}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+              </svg>
+              <span>Job Seeker</span>
             </button>
 
-            {/* Recruiter Card */}
+            {/* Recruiter Option */}
             <button
               type="button"
               onClick={() => setRole("recruiter")}
-              className={`p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
                 role === "recruiter"
-                  ? "bg-gradient-to-br from-violet-600/20 via-violet-900/30 to-slate-900 border-violet-500 shadow-md shadow-violet-500/15"
-                  : "bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-400"
+                  ? "bg-slate-900 border border-blue-500/40 text-blue-400 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent"
               }`}
             >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xl">💼</span>
-                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                  role === "recruiter" ? "border-violet-400 bg-violet-500" : "border-slate-700 bg-slate-900"
-                }`}>
-                  {role === "recruiter" && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
-                </span>
-              </div>
-              <div className={`text-xs font-bold ${role === "recruiter" ? "text-white" : "text-slate-300"}`}>
-                Recruiter / HR
-              </div>
-              <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
-                Search verified talent & hire
-              </p>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 ${role === "recruiter" ? "text-blue-400" : "text-slate-500"}`}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z" />
+              </svg>
+              <span>Recruiter</span>
             </button>
           </div>
         </div>
@@ -333,9 +300,9 @@ function Login() {
                 <span>Authenticating...</span>
               </>
             ) : isLogin ? (
-              <span>Sign In as {role === "recruiter" ? "Recruiter" : "Candidate"} →</span>
+              <span>Sign In as {role === "recruiter" ? "Recruiter" : "Job Seeker"} →</span>
             ) : (
-              <span>Create {role === "recruiter" ? "Recruiter" : "Candidate"} Account →</span>
+              <span>Create {role === "recruiter" ? "Recruiter" : "Job Seeker"} Account →</span>
             )}
           </button>
         </form>
