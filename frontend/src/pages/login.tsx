@@ -288,11 +288,7 @@ function Login() {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full mt-2 flex items-center justify-center gap-2 rounded-xl py-3 font-bold text-xs text-white shadow-lg focus:ring-2 outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 cursor-pointer ${
-              role === "recruiter"
-                ? "bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-violet-500/20 focus:ring-violet-500/50"
-                : "bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 shadow-blue-500/20 focus:ring-blue-500/50"
-            }`}
+            className="w-full mt-3 flex items-center justify-center gap-2 rounded-xl py-3 px-6 font-semibold text-sm text-white bg-[#5865F2] hover:bg-[#4752c4] shadow-lg shadow-[#5865F2]/25 focus:ring-2 focus:ring-[#5865F2]/50 outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
           >
             {loading ? (
               <>
@@ -300,55 +296,79 @@ function Login() {
                 <span>Authenticating...</span>
               </>
             ) : isLogin ? (
-              <span>Sign In as {role === "recruiter" ? "Recruiter" : "Job Seeker"} →</span>
+              <>
+                <span>Sign In</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-4 h-4"
+                >
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" y1="12" x2="3" y2="12" />
+                </svg>
+              </>
             ) : (
-              <span>Create {role === "recruiter" ? "Recruiter" : "Job Seeker"} Account →</span>
+              <>
+                <span>Sign Up</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-4 h-4"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="22" y1="11" x2="16" y2="11" />
+                </svg>
+              </>
             )}
           </button>
         </form>
 
-        {/* 2. LOWER LOGIN / REGISTER SWITCHER */}
-        <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2 w-full">
-            <div className="h-px flex-1 bg-slate-800"></div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              {isLogin ? "Need an account?" : "Already have an account?"}
-            </span>
-            <div className="h-px flex-1 bg-slate-800"></div>
-          </div>
-
-          <div className="w-full grid grid-cols-2 p-1 rounded-xl bg-slate-950 border border-slate-800/90 shadow-inner">
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(true);
-                setErrorMsg("");
-                setSuccessMsg("");
-              }}
-              className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                isLogin
-                  ? "bg-slate-800 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(false);
-                setErrorMsg("");
-                setSuccessMsg("");
-              }}
-              className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                !isLogin
-                  ? "bg-slate-800 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Register
-            </button>
-          </div>
+        {/* Lower Switcher Link: "Already have an account? Sign in" / "Don't have an account? Sign up" */}
+        <div className="mt-6 text-center">
+          {isLogin ? (
+            <p className="text-xs sm:text-sm text-slate-400">
+              Don't have an account?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(false);
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                }}
+                className="font-medium text-[#5865F2] hover:text-[#7983f5] hover:underline transition-colors cursor-pointer"
+              >
+                Sign up
+              </button>
+            </p>
+          ) : (
+            <p className="text-xs sm:text-sm text-slate-400">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(true);
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                }}
+                className="font-medium text-[#5865F2] hover:text-[#7983f5] hover:underline transition-colors cursor-pointer"
+              >
+                Sign in
+              </button>
+            </p>
+          )}
         </div>
 
       </div>
