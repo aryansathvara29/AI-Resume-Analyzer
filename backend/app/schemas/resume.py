@@ -8,6 +8,7 @@ class ResumeResponse(BaseModel):
     file_path: str
     extracted_text: str | None = None
     ats_score: int | None = None
+    ats_analysis: dict | list | None = None
     uploaded_at: datetime
 
     class Config:

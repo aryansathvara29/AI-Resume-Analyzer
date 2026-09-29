@@ -5,6 +5,7 @@ from sqlalchemy import (
     ForeignKey,
     DateTime,
     Text,
+    JSON,
 )
 from datetime import datetime
 
@@ -25,5 +26,7 @@ class Resume(Base):
     extracted_text = Column(Text, nullable=True)
 
     ats_score = Column(Integer, nullable=True)
+
+    ats_analysis = Column(JSON, nullable=True)
 
     uploaded_at = Column(DateTime, default=datetime.utcnow)

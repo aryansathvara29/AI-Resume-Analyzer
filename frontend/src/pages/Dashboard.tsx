@@ -156,6 +156,7 @@ interface ResumeDetail {
   extracted_text: string | null;
   ats_score: number | null;
   uploaded_at: string;
+  ats_analysis?: any;
 }
 
 interface DashboardStats {
@@ -230,6 +231,34 @@ function Dashboard() {
   const [jobMatchResult, setJobMatchResult] = useState<string>("");
   const [matchLoading, setMatchLoading] = useState<boolean>(false);
   const [resumeSelecting, setResumeSelecting] = useState<boolean>(false);
+
+  // Gemini AI Deep Audit states
+  const [geminiAuditLoading, setGeminiAuditLoading] = useState(false);
+  const [geminiAuditResult, setGeminiAuditResult] = useState<any | null>(null);
+  const [geminiAuditError, setGeminiAuditError] = useState("");
+
+  const runGeminiDeepAudit = async () => {
+    if (!selectedResume?.extracted_text) return;
+    setGeminiAuditLoading(true);
+    setGeminiAuditError("");
+    try {
+      const res = await api.post("/ai/analyze", {
+        resume_text: selectedResume.extracted_text,
+      });
+      if (res.data?.success && res.data?.analysis) {
+        setGeminiAuditResult(res.data.analysis);
+      } else {
+        setGeminiAuditError("Unable to load AI Audit results.");
+      }
+    } catch (err: any) {
+      console.error("Gemini Deep Audit error:", err);
+      setGeminiAuditError(
+        err.response?.data?.detail || "Failed to run AI Deep Audit. Ensure backend is running."
+      );
+    } finally {
+      setGeminiAuditLoading(false);
+    }
+  };
 
 
   // AI Chatbot states
@@ -1270,9 +1299,8 @@ function Dashboard() {
     ? getDetectedSkillsAndSuggestions(selectedResume.extracted_text)
     : { skills: [], suggestions: [] };
 
-  const effectiveAtsScore = (selectedResume && currentSkillsAndSuggestions.skills.length === 0)
-    ? 0
-    : (selectedResume?.ats_score ?? 0);
+  const effectiveAtsScore = selectedResume?.ats_score ?? 0;
+  const atsAnalysis = selectedResume?.ats_analysis || null;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col md:flex-row relative overflow-hidden font-sans">
@@ -1970,6 +1998,433 @@ function Dashboard() {
                           <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5 py-1">
                             <span>✨</span> Excellent parser rating! No critical suggestions needed.
                           </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ======================================================== */}
+                    {/* FULL RESUME ATS ANALYSIS COMPONENT                       */}
+                    {/* ======================================================== */}
+                    <div className="space-y-8 pt-4 border-t border-slate-800/80">
+                      {/* Section Header */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                              Comprehensive Evaluation
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-800">
+                              {atsAnalysis?.candidate_type === "fresher" ? "🎓 Fresher Profile (Project-Weighted)" : "💼 Experienced Profile"}
+                            </span>
+                          </div>
+                          <h3 className="text-xl font-bold text-white mt-1.5 flex items-center gap-2">
+                            Full Resume ATS Analysis
+                          </h3>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Multi-dimensional analysis across 11 key scoring factors.
+                          </p>
+                        </div>
+
+                        {/* Top Score Pill */}
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Resume Health</span>
+                            <span className="text-xs font-semibold text-emerald-400">Analysis Complete</span>
+                          </div>
+                          <div className="px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2 shadow-inner">
+                            <span className="text-lg font-black text-white">{effectiveAtsScore}%</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">ATS</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 1. Resume Health Category Breakdown (11 Categories) */}
+                      <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                            <span>📊</span> Resume Health Scorecards (11 Dimensions)
+                          </h4>
+                          <span className="text-[11px] text-slate-400">
+                            Total Score: <strong className="text-white">{effectiveAtsScore}/100</strong>
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                          {[
+                            { key: "contact", label: "Contact Info", max: atsAnalysis?.category_max_scores?.contact || 5 },
+                            { key: "summary", label: "Summary", max: atsAnalysis?.category_max_scores?.summary || 10 },
+                            { key: "skills", label: "Skills", max: atsAnalysis?.category_max_scores?.skills || 15 },
+                            { key: "experience", label: "Experience", max: atsAnalysis?.category_max_scores?.experience || 20 },
+                            { key: "projects", label: "Projects", max: atsAnalysis?.category_max_scores?.projects || 15 },
+                            { key: "education", label: "Education", max: atsAnalysis?.category_max_scores?.education || 10 },
+                            { key: "certifications", label: "Certifications", max: atsAnalysis?.category_max_scores?.certifications || 5 },
+                            { key: "achievements", label: "Achievements", max: atsAnalysis?.category_max_scores?.achievements || 5 },
+                            { key: "keywords", label: "Keywords", max: atsAnalysis?.category_max_scores?.keywords || 5 },
+                            { key: "formatting", label: "Formatting", max: atsAnalysis?.category_max_scores?.formatting || 5 },
+                            { key: "links", label: "Links", max: atsAnalysis?.category_max_scores?.links || 5 },
+                          ].map((cat) => {
+                            const val = atsAnalysis?.category_scores?.[cat.key] ?? 0;
+                            const pct = Math.round((val / cat.max) * 100);
+                            return (
+                              <div
+                                key={cat.key}
+                                className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition-all"
+                              >
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span className="text-[11px] font-semibold text-slate-300 truncate">{cat.label}</span>
+                                  <span className="text-xs font-black text-white">{val}/{cat.max}</span>
+                                </div>
+                                <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-700 ${
+                                      pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-blue-500" : "bg-amber-500"
+                                    }`}
+                                    style={{ width: `${pct}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 2. "Why this score?" (Strengths & Points Lost) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Strengths / Points Gained */}
+                        <div className="rounded-2xl bg-emerald-950/20 border border-emerald-500/20 p-5 space-y-3">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                            <span>✓</span> Strengths (Points Gained)
+                          </h4>
+                          {atsAnalysis?.strengths && atsAnalysis.strengths.length > 0 ? (
+                            <ul className="space-y-2">
+                              {atsAnalysis.strengths.map((str: string, i: number) => (
+                                <li key={i} className="text-xs text-slate-300 flex items-start gap-2 leading-relaxed">
+                                  <span className="text-emerald-400 font-bold mt-0.5">✓</span>
+                                  <span>{str}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic">No specific strengths recorded.</p>
+                          )}
+                        </div>
+
+                        {/* Points Lost / Areas for Improvement */}
+                        <div className="rounded-2xl bg-rose-950/20 border border-rose-500/20 p-5 space-y-3">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-2">
+                            <span>⚠</span> Points Lost (Why Score Was Deducted)
+                          </h4>
+                          {atsAnalysis?.weaknesses && atsAnalysis.weaknesses.length > 0 ? (
+                            <ul className="space-y-2">
+                              {atsAnalysis.weaknesses.map((weak: string, i: number) => (
+                                <li key={i} className="text-xs text-slate-300 flex items-start gap-2 leading-relaxed">
+                                  <span className="text-rose-400 font-bold mt-0.5">⚠</span>
+                                  <span>{weak}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-emerald-400 font-semibold">Perfect compliance! No points deducted.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 3. Deep Section Analysis Cards Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* Contact Information & Links Card */}
+                        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                              <span>📇</span> Contact & Online Links
+                            </h4>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                              {(atsAnalysis?.category_scores?.contact ?? 0) + (atsAnalysis?.category_scores?.links ?? 0)}/
+                              {(atsAnalysis?.category_max_scores?.contact ?? 5) + (atsAnalysis?.category_max_scores?.links ?? 5)} pts
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 text-[10px]">
+                            {atsAnalysis?.sections?.contact?.details ? (
+                              <>
+                                <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis.sections.contact.details.name ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"}`}>
+                                  Name: {atsAnalysis.sections.contact.details.name ? "Found ✓" : "Missing ⚠"}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis.sections.contact.details.email ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"}`}>
+                                  Email: {atsAnalysis.sections.contact.details.email ? "Found ✓" : "Missing ⚠"}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis.sections.contact.details.phone ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"}`}>
+                                  Phone: {atsAnalysis.sections.contact.details.phone ? "Found ✓" : "Missing ⚠"}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis.sections.contact.details.location ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
+                                  Location: {atsAnalysis.sections.contact.details.location ? "Found ✓" : "Missing ⚠"}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis.sections.contact.details.github ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
+                                  GitHub: {atsAnalysis.sections.contact.details.github ? "Linked ✓" : "Missing ⚠"}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis.sections.contact.details.linkedin ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
+                                  LinkedIn: {atsAnalysis.sections.contact.details.linkedin ? "Linked ✓" : "Missing ⚠"}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis.sections.contact.details.portfolio ? "bg-violet-500/10 text-violet-400 border-violet-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
+                                  Portfolio: {atsAnalysis.sections.contact.details.portfolio ? "Linked ✓" : "Not Provided"}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-slate-400 text-xs">Standard contact extraction completed.</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Professional Summary Card */}
+                        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                              <span>📝</span> Professional Summary
+                            </h4>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                              {atsAnalysis?.category_scores?.summary ?? 0}/{atsAnalysis?.category_max_scores?.summary ?? 10} pts
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            {atsAnalysis?.sections?.summary?.feedback || "Professional Summary or Objective analyzed."}
+                          </p>
+                          {atsAnalysis?.sections?.summary?.word_count ? (
+                            <span className="text-[10px] text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800 inline-block">
+                              Length: {atsAnalysis.sections.summary.word_count} words
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {/* Education Analysis Card */}
+                        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                              <span>🎓</span> Education & Degree
+                            </h4>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                              {atsAnalysis?.category_scores?.education ?? 0}/{atsAnalysis?.category_max_scores?.education ?? 10} pts
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            {atsAnalysis?.sections?.education?.feedback || "Education credentials evaluated."}
+                          </p>
+                          <div className="flex gap-1.5 text-[10px]">
+                            <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis?.sections?.education?.degree_found ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"}`}>
+                              Degree: {atsAnalysis?.sections?.education?.degree_found ? "Detected ✓" : "Missing ⚠"}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis?.sections?.education?.cgpa_found ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
+                              CGPA/Grade: {atsAnalysis?.sections?.education?.cgpa_found ? "Included ✓" : "Optional"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Projects Analysis Card */}
+                        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                              <span>🚀</span> Projects Evaluation
+                            </h4>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                              {atsAnalysis?.category_scores?.projects ?? 0}/{atsAnalysis?.category_max_scores?.projects ?? 15} pts
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            {atsAnalysis?.sections?.projects?.feedback || "Technical projects inspected for tooling and outcomes."}
+                          </p>
+                          <div className="flex gap-1.5 text-[10px]">
+                            <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis?.sections?.projects?.has_links ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>
+                              Repository / Demo Links: {atsAnalysis?.sections?.projects?.has_links ? "Found ✓" : "Not Found"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Experience & Internships Card */}
+                        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                              <span>💼</span> Experience & Action Verbs
+                            </h4>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                              {atsAnalysis?.category_scores?.experience ?? 0}/{atsAnalysis?.category_max_scores?.experience ?? 20} pts
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            {atsAnalysis?.sections?.experience?.feedback || "Work experience bullets audited for impact."}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 text-[10px]">
+                            <span className={`px-2 py-0.5 rounded font-semibold border ${atsAnalysis?.sections?.experience?.has_metrics ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>
+                              Measurable Metrics: {atsAnalysis?.sections?.experience?.has_metrics ? "Present ✓" : "None detected"}
+                            </span>
+                            {atsAnalysis?.sections?.experience?.action_verb_count ? (
+                              <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold">
+                                {atsAnalysis.sections.experience.action_verb_count} Action Verbs
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* Formatting & ATS Safety Card */}
+                        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                              <span>🛡️</span> ATS Compatibility & Risk
+                            </h4>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                              {atsAnalysis?.category_scores?.formatting ?? 0}/{atsAnalysis?.category_max_scores?.formatting ?? 5} pts
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            {atsAnalysis?.sections?.formatting?.feedback || "Document structure vetted for standard scanner parsing."}
+                          </p>
+                          <div className="flex gap-1.5 text-[10px]">
+                            <span className={`px-2.5 py-0.5 rounded-full font-bold border ${
+                              atsAnalysis?.sections?.formatting?.risk_level === "Low Risk"
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                            }`}>
+                              Risk Level: {atsAnalysis?.sections?.formatting?.risk_level || "Low Risk"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 4. Categorized Technical Skills & Verification Evidence */}
+                      {atsAnalysis?.sections?.skills?.categories && Object.keys(atsAnalysis.sections.skills.categories).length > 0 && (
+                        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6 space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                            <span>⚡</span> Technical Skills by Domain & Verification Evidence
+                          </h4>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {Object.entries(atsAnalysis.sections.skills.categories).map(([category, skillsList]: [string, any]) => (
+                              <div key={category} className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+                                <span className="text-xs font-bold text-blue-400 block uppercase tracking-wide">
+                                  {category} ({skillsList.length})
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {skillsList.map((skill: string) => {
+                                    const sVer = skillVerifications[skill.toLowerCase()];
+                                    const isCert = sVer?.status === "verified_certificate" || sVer?.status === "VERIFIED_CERTIFICATE";
+                                    const isTest = sVer?.status === "verified_ai_test" || sVer?.status === "VERIFIED_AI_TEST";
+                                    return (
+                                      <span
+                                        key={skill}
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                                          isCert || isTest
+                                            ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
+                                            : "bg-slate-900 text-slate-300 border-slate-800"
+                                        }`}
+                                      >
+                                        <span className="capitalize">{skill}</span>
+                                        {isCert ? (
+                                          <span className="text-[10px] text-emerald-400" title="Certificate Verified">✅</span>
+                                        ) : isTest ? (
+                                          <span className="text-[10px] text-blue-400" title="Verified by AI Test">🎯</span>
+                                        ) : (
+                                          <span className="text-[9px] text-slate-500" title="Supporting evidence not verified">⚪</span>
+                                        )}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <p className="text-[11px] text-slate-400 italic">
+                            Legend: ✅ Certificate Verified | 🎯 Verified by AI Test | ⚪ Supporting evidence not yet verified
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 5. Gemini AI Deep Audit Section */}
+                      <div className="rounded-2xl bg-gradient-to-br from-indigo-950/40 via-slate-900/60 to-slate-950 border border-indigo-500/20 p-6 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">🤖</span>
+                              <h4 className="text-sm font-bold text-white">Gemini 2.5 Flash Deep Review</h4>
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold uppercase tracking-wider">
+                                Multimodal AI
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">
+                              Run deep neural inspection on full resume text for role alignment, architectural critique, and tailored interview prep.
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={runGeminiDeepAudit}
+                            disabled={geminiAuditLoading}
+                            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-xs font-bold text-white transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer flex-shrink-0 disabled:opacity-50"
+                          >
+                            {geminiAuditLoading ? (
+                              <>
+                                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                <span>Analyzing with Gemini...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>⚡</span>
+                                <span>{geminiAuditResult ? "Re-Run AI Deep Audit" : "Run AI Deep Audit"}</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {geminiAuditError && (
+                          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
+                            {geminiAuditError}
+                          </div>
+                        )}
+
+                        {geminiAuditResult && (
+                          <div className="space-y-4 pt-4 border-t border-slate-800/80 animate-fade-in">
+                            {/* Executive Summary */}
+                            {geminiAuditResult.summary && (
+                              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
+                                <span className="text-[10px] text-indigo-400 uppercase font-black tracking-wider block mb-1">
+                                  AI Executive Summary
+                                </span>
+                                <p className="text-xs text-slate-200 leading-relaxed">
+                                  {geminiAuditResult.summary}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Recommendations Grid */}
+                            {geminiAuditResult.recommendations && geminiAuditResult.recommendations.length > 0 && (
+                              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
+                                <span className="text-[10px] text-emerald-400 uppercase font-black tracking-wider block mb-2">
+                                  Priority AI Recommendations
+                                </span>
+                                <ul className="space-y-1.5">
+                                  {geminiAuditResult.recommendations.map((rec: string, idx: number) => (
+                                    <li key={idx} className="text-xs text-slate-300 flex items-start gap-2">
+                                      <span className="text-emerald-400 font-bold">→</span>
+                                      <span>{rec}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Interview Questions */}
+                            {geminiAuditResult.interview_questions && geminiAuditResult.interview_questions.length > 0 && (
+                              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800">
+                                <span className="text-[10px] text-blue-400 uppercase font-black tracking-wider block mb-2">
+                                  Anticipated Technical Interview Questions
+                                </span>
+                                <div className="space-y-2">
+                                  {geminiAuditResult.interview_questions.map((q: string, idx: number) => (
+                                    <div key={idx} className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-start gap-2">
+                                      <span className="text-blue-400 font-bold">Q{idx + 1}:</span>
+                                      <span>{q.replace(/^\d+[\.\)]\s*/, "")}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

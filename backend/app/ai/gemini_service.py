@@ -13,43 +13,141 @@ model = genai.GenerativeModel("gemini-2.5-flash")
 # -----------------------------
 # Resume Analysis
 # -----------------------------
-def analyze_resume(resume_text: str):
+# Resume Analysis (Gemini Structured Deep Audit)
+# -----------------------------
+def analyze_resume(resume_text: str) -> dict:
+    import json
+    from app.services.ats_service import calculate_ats_score
+
+    # Compute deterministic baseline analysis first
+    base_ats = calculate_ats_score(resume_text)
 
     prompt = f"""
-You are an expert ATS Resume Reviewer.
+You are an expert ATS Resume Reviewer and Senior Talent Evaluator.
+Analyze the following complete resume text in depth.
 
-Analyze the following resume.
-
-Return your response in this format.
-
-Resume Summary:
-...
-
-Strengths:
-- ...
-
-Weaknesses:
-- ...
-
-Missing Skills:
-- ...
-
-Suggestions:
-- ...
-
-Interview Questions:
-1.
-2.
-3.
+Return ONLY a valid JSON object without markdown fences or extraneous text with this EXACT schema:
+{{
+  "summary": "2-3 sentences executive summary of candidate profile and market readiness",
+  "candidate_type": "{base_ats.get('candidate_type', 'fresher')}",
+  "category_scores": {{
+    "contact": integer (0-5),
+    "summary": integer (0-10),
+    "skills": integer (0-15),
+    "experience": integer (0-20),
+    "projects": integer (0-15),
+    "education": integer (0-10),
+    "certifications": integer (0-5),
+    "achievements": integer (0-5),
+    "keywords": integer (0-5),
+    "formatting": integer (0-5),
+    "links": integer (0-5)
+  }},
+  "strengths": [
+    "string: specific strengths observed in candidate's text"
+  ],
+  "weaknesses": [
+    "string: specific weaknesses that lower ATS score"
+  ],
+  "missing_sections": [
+    "string: missing or incomplete sections"
+  ],
+  "missing_keywords": [
+    "string: important technical keywords missing from this profile"
+  ],
+  "recommendations": [
+    "string: concrete action item to increase interview callbacks"
+  ],
+  "experience_analysis": [
+    "string: assessment of action verbs and measurable metrics in bullet points"
+  ],
+  "project_analysis": [
+    "string: assessment of project implementation details and links"
+  ],
+  "education_analysis": {{
+    "degree": "string: detected degree",
+    "institution": "string: detected university or college",
+    "completeness": "Complete or Incomplete",
+    "notes": "string: educational assessment"
+  }},
+  "certification_analysis": [
+    "string: recognized certifications or recommended courses"
+  ],
+  "contact_analysis": {{
+    "has_email": true,
+    "has_phone": true,
+    "has_links": true,
+    "notes": "string: contact assessment"
+  }},
+  "formatting_analysis": {{
+    "risk_level": "Low Risk or Medium Risk or Potential ATS Parsing Risk",
+    "bullet_structure": "string: evaluation of bullet usage",
+    "notes": "string: readability and parsing safety assessment"
+  }},
+  "interview_questions": [
+    "1. string technical question based on their stack",
+    "2. string project architecture question",
+    "3. string problem solving question"
+  ]
+}}
 
 Resume:
-
 {resume_text}
 """
 
-    response = model.generate_content(prompt)
+    try:
+        response = model.generate_content(prompt)
+        text_resp = response.text.strip()
 
-    return response.text
+        # Clean markdown codeblocks if returned
+        if text_resp.startswith("```"):
+            lines = text_resp.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            text_resp = "\n".join(lines).strip()
+
+        parsed = json.loads(text_resp)
+        return parsed
+    except Exception as e:
+        print(f"[WARN] Gemini analyze_resume JSON parse error or timeout: {e}. Using deterministic fallback.")
+        # Robust fallback using deterministic full ATS calculation
+        return {
+            "summary": f"Candidate profile identified as {base_ats.get('candidate_type', 'fresher')}. Skills: {', '.join(base_ats.get('skills', [])[:6])}.",
+            "candidate_type": base_ats.get("candidate_type", "fresher"),
+            "category_scores": base_ats.get("category_scores", {}),
+            "strengths": base_ats.get("strengths", []),
+            "weaknesses": base_ats.get("weaknesses", []),
+            "missing_sections": base_ats.get("missing_sections", []),
+            "missing_keywords": base_ats.get("missing_keywords", []),
+            "recommendations": base_ats.get("suggestions", []),
+            "experience_analysis": [base_ats["sections"]["experience"].get("feedback", "No work experience details.")],
+            "project_analysis": [base_ats["sections"]["projects"].get("feedback", "No project details.")],
+            "education_analysis": {
+                "degree": "Identified in resume" if base_ats["sections"]["education"].get("degree_found") else "Not detected",
+                "institution": "Identified in resume" if base_ats["sections"]["education"].get("college_found") else "Not detected",
+                "completeness": "Complete" if base_ats["sections"]["education"].get("score", 0) >= 8 else "Needs year/CGPA",
+                "notes": base_ats["sections"]["education"].get("feedback", "")
+            },
+            "certification_analysis": [base_ats["sections"]["certifications"].get("feedback", "Add certifications.")],
+            "contact_analysis": {
+                "has_email": base_ats["sections"]["contact"]["details"].get("email", False),
+                "has_phone": base_ats["sections"]["contact"]["details"].get("phone", False),
+                "has_links": base_ats["sections"]["contact"]["details"].get("github", False) or base_ats["sections"]["contact"]["details"].get("linkedin", False),
+                "notes": "Contact details analyzed."
+            },
+            "formatting_analysis": {
+                "risk_level": base_ats["sections"]["formatting"].get("risk_level", "Low Risk"),
+                "bullet_structure": base_ats["sections"]["formatting"].get("bullet_ratio", ""),
+                "notes": base_ats["sections"]["formatting"].get("feedback", "")
+            },
+            "interview_questions": [
+                f"Can you explain your experience with {base_ats.get('skills', ['your core language'])[0]}?",
+                "Walk me through the architecture and technical challenges of your top project.",
+                "How do you approach optimizing performance and database queries in your applications?"
+            ]
+        }
 
 
 # -----------------------------

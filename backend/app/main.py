@@ -65,6 +65,16 @@ for col_def in skill_verif_columns:
     except Exception as e:
         print(f"[INFO] SkillVerifications migration notice ({col_def}): {e}")
 
+resume_columns = [
+    "ats_analysis JSON",
+]
+for col_def in resume_columns:
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE resumes ADD COLUMN IF NOT EXISTS {col_def};"))
+    except Exception as e:
+        print(f"[INFO] Resumes migration notice ({col_def}): {e}")
+
 from app.api.v1.users import router as user_router
 from app.api.v1.resumes import router as resume_router
 from app.api.v1.ai import router as ai_router

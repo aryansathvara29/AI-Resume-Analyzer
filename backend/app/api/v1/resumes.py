@@ -114,6 +114,7 @@ def upload_resume(
         file_path=file_path,
         extracted_text=extracted_text,
         ats_score=ats_result["ats_score"],
+        ats_analysis=ats_result,
     )
 
     db.add(resume)
@@ -129,6 +130,7 @@ def upload_resume(
         "file_path": resume.file_path,
         "extracted_text": resume.extracted_text,
         "ats_score": resume.ats_score,
+        "ats_analysis": resume.ats_analysis,
         "uploaded_at": resume.uploaded_at,
     }
 
@@ -153,6 +155,15 @@ def get_resume(
             status_code=404,
             detail="Resume not found",
         )
+
+    # Lazy-compute detailed ats_analysis for historical records
+    if resume.ats_analysis is None and resume.extracted_text:
+        try:
+            resume.ats_analysis = calculate_ats_score(resume.extracted_text)
+            db.commit()
+            db.refresh(resume)
+        except Exception as e:
+            print(f"[WARN] Could not lazy-calculate ats_analysis for resume {resume.id}: {e}")
 
     return resume
 
