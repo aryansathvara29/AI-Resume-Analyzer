@@ -50,11 +50,20 @@ for col_def in profile_columns:
     except Exception as e:
         print(f"[INFO] Column migration notice ({col_def}): {e}")
 
-try:
-    with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE skill_verifications ADD COLUMN IF NOT EXISTS resume_id INTEGER;"))
-except Exception as e:
-    print(f"[INFO] SkillVerifications migration notice: {e}")
+skill_verif_columns = [
+    "resume_id INTEGER",
+    "certificate_title VARCHAR(255)",
+    "issuer VARCHAR(255)",
+    "detected_skill VARCHAR(100)",
+    "confidence FLOAT",
+    "verification_reason TEXT"
+]
+for col_def in skill_verif_columns:
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE skill_verifications ADD COLUMN IF NOT EXISTS {col_def};"))
+    except Exception as e:
+        print(f"[INFO] SkillVerifications migration notice ({col_def}): {e}")
 
 from app.api.v1.users import router as user_router
 from app.api.v1.resumes import router as resume_router

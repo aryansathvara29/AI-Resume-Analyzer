@@ -1874,9 +1874,10 @@ function Dashboard() {
                           <div className="space-y-2.5">
                             {currentSkillsAndSuggestions.skills.map((skill) => {
                               const sVer = skillVerifications[skill.toLowerCase()];
-                              const isCert = sVer?.status === "verified_certificate";
-                              const isTest = sVer?.status === "verified_ai_test";
-                              const isFailed = sVer?.status === "learning_recommended";
+                              const isCert = sVer?.status === "verified_certificate" || sVer?.status === "VERIFIED_CERTIFICATE";
+                              const isTest = sVer?.status === "verified_ai_test" || sVer?.status === "VERIFIED_AI_TEST";
+                              const isFailed = sVer?.status === "learning_recommended" || sVer?.status === "LEARNING_RECOMMENDED";
+                              const isRejected = sVer?.status === "certificate_rejected" || sVer?.status === "CERTIFICATE_REJECTED";
 
                               return (
                                 <div
@@ -1912,7 +1913,22 @@ function Dashboard() {
                                     </div>
                                   )}
 
-                                  {!isCert && !isTest && !isFailed && (
+                                  {isRejected && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded-lg">
+                                        Certificate Rejected ❌
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedSkillToVerify(skill)}
+                                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-[10px] font-bold text-white transition-all cursor-pointer shadow-sm"
+                                      >
+                                        Verify Skill
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {!isCert && !isTest && !isFailed && !isRejected && (
                                     <button
                                       type="button"
                                       onClick={() => setSelectedSkillToVerify(skill)}
@@ -4517,9 +4533,10 @@ function Dashboard() {
                           ])
                         ).map((skill) => {
                           const sVer = skillVerifications[skill.toLowerCase()];
-                          const isCert = sVer?.status === "verified_certificate";
-                          const isTest = sVer?.status === "verified_ai_test";
-                          const isFailed = sVer?.status === "learning_recommended";
+                          const isCert = sVer?.status === "verified_certificate" || sVer?.status === "VERIFIED_CERTIFICATE";
+                          const isTest = sVer?.status === "verified_ai_test" || sVer?.status === "VERIFIED_AI_TEST";
+                          const isFailed = sVer?.status === "learning_recommended" || sVer?.status === "LEARNING_RECOMMENDED";
+                          const isRejected = sVer?.status === "certificate_rejected" || sVer?.status === "CERTIFICATE_REJECTED";
 
                           return (
                             <div
@@ -4545,7 +4562,12 @@ function Dashboard() {
                                     <span>Learning Recommended</span> <span>⚠️</span>
                                   </p>
                                 )}
-                                {!isCert && !isTest && !isFailed && (
+                                {isRejected && (
+                                  <p className="text-xs text-rose-400 font-semibold mt-1 flex items-center gap-1">
+                                    <span>Certificate Rejected</span> <span>❌</span>
+                                  </p>
+                                )}
+                                {!isCert && !isTest && !isFailed && !isRejected && (
                                   <p className="text-xs text-slate-400 font-medium mt-1">Not Verified</p>
                                 )}
                               </div>
@@ -4569,7 +4591,15 @@ function Dashboard() {
                                     Re-Take Test / Verify
                                   </button>
                                 )}
-                                {!isCert && !isTest && !isFailed && (
+                                {isRejected && (
+                                  <button
+                                    onClick={() => setSelectedSkillToVerify(skill)}
+                                    className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+                                  >
+                                    Re-Verify Skill
+                                  </button>
+                                )}
+                                {!isCert && !isTest && !isFailed && !isRejected && (
                                   <button
                                     onClick={() => setSelectedSkillToVerify(skill)}
                                     className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white transition-all shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer"

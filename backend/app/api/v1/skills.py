@@ -10,7 +10,12 @@ from app.database.session import get_db
 from app.models.user import User
 from app.models.skill_verification import SkillVerification
 from app.dependencies.auth import get_current_user
-from app.ai.gemini_service import generate_skill_mcq_test, generate_multi_skill_mcq_test, generate_learning_resources
+from app.ai.gemini_service import (
+    generate_skill_mcq_test,
+    generate_multi_skill_mcq_test,
+    generate_learning_resources,
+    verify_certificate_document,
+)
 
 router = APIRouter()
 
@@ -374,55 +379,7 @@ def get_user_skill_verifications(
     return records
 
 
-import re
-
-
-def validate_certificate_content(file_path: str, filename: str, skill_name: str) -> tuple[bool, str]:
-    clean_skill = skill_name.strip().lower()
-    clean_filename = filename.strip()
-
-    # Skill keywords dictionary with exact target skill terms
-    skill_keywords = {
-        "java": ["java", "j2ee", "spring", "hibernate", "jdk", "oracle java", "java se", "java ee", "core java", "advanced java"],
-        "python": ["python", "django", "flask", "fastapi", "numpy", "pandas", "python3", "pytest"],
-        "javascript": ["javascript", "ecmascript", "node", "nodejs", "expressjs"],
-        "react": ["react", "reactjs", "react.js", "jsx"],
-        "sql": ["sql", "mysql", "postgresql", "postgres", "sqlite", "oracle sql", "t-sql", "pl/sql"],
-        "docker": ["docker", "containerization", "kubernetes", "k8s", "dockerfile"],
-        "aws": ["aws", "amazon web services", "ec2", "s3", "lambda", "cloudfront"],
-    }
-
-    target_keywords = skill_keywords.get(clean_skill, [clean_skill])
-
-    # Helper function to check exact word boundaries
-    def matches_skill(search_text: str) -> bool:
-        if not search_text:
-            return False
-        for kw in target_keywords:
-            pattern = r'\b' + re.escape(kw) + r'\b'
-            if re.search(pattern, search_text, re.IGNORECASE):
-                return True
-        return False
-
-    # 1. Check filename with exact word boundaries
-    filename_matched = matches_skill(clean_filename)
-
-    # 2. Extract text if PDF
-    extracted_text = ""
-    if file_path.lower().endswith(".pdf"):
-        try:
-            from app.utils.resume_parser import extract_resume_text
-            extracted_text = extract_resume_text(file_path)
-        except Exception as e:
-            print(f"[WARNING] Certificate text extraction error: {e}")
-
-    text_matched = matches_skill(extracted_text)
-
-    # Reject if neither filename nor text matches target skill
-    if not (filename_matched or text_matched):
-        return False, f"Verification Failed: Uploaded document does not mention '{skill_name}'. Please upload a valid certificate for {skill_name}."
-
-    return True, "Certificate validated successfully."
+from app.utils.resume_parser import extract_resume_text
 
 
 @router.post("/verify/certificate")
@@ -433,7 +390,8 @@ async def verify_skill_by_certificate(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    original_filename = file.filename or f"{skill_name}_certificate.pdf"
+    clean_skill = skill_name.strip()
+    original_filename = file.filename or "certificate.pdf"
     clean_filename = original_filename.strip()
     ext = os.path.splitext(clean_filename)[1].lower()
     content_type = (file.content_type or "").lower()
@@ -444,7 +402,13 @@ async def verify_skill_by_certificate(
     if not (is_valid_ext or is_valid_mime):
         raise HTTPException(
             status_code=400,
-            detail="Invalid file format. Only PDF, PNG, JPG, JPEG allowed."
+            detail={
+                "error_type": "INVALID_FORMAT",
+                "status": "CERTIFICATE_REJECTED",
+                "message": "Invalid file format. Only PDF, PNG, JPG, and JPEG files are supported.",
+                "reason": "Invalid file format. Only PDF, PNG, JPG, and JPEG files are supported.",
+                "claimed_skill": clean_skill
+            }
         )
 
     if not ext:
@@ -454,31 +418,47 @@ async def verify_skill_by_certificate(
     if len(file_bytes) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400,
-            detail="File size exceeds maximum limit of 5 MB."
+            detail={
+                "error_type": "FILE_TOO_LARGE",
+                "status": "CERTIFICATE_REJECTED",
+                "message": "File size exceeds maximum limit of 5 MB.",
+                "reason": "File size exceeds maximum limit of 5 MB.",
+                "claimed_skill": clean_skill
+            }
         )
 
+    # Temporary write to disk for text extraction if PDF
     unique_filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
     with open(file_path, "wb") as f:
         f.write(file_bytes)
 
-    # Validate that certificate text or filename actually pertains to skill_name
-    is_valid_cert, error_reason = validate_certificate_content(file_path, clean_filename, skill_name)
-    if not is_valid_cert:
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass
-        raise HTTPException(
-            status_code=400,
-            detail=error_reason
-        )
+    extracted_text = ""
+    if ext == ".pdf":
+        try:
+            extracted_text = extract_resume_text(file_path)
+        except Exception as e:
+            print(f"[WARNING] Certificate text extraction error: {e}")
 
-    # Upsert verification record scoped by resume_id
+    # Determine standard MIME type for Gemini
+    mime_for_ai = content_type
+    if not mime_for_ai:
+        mime_for_ai = "application/pdf" if ext == ".pdf" else "image/png"
+
+    # Strict Content-based AI Validation (Filename is NEVER used as proof)
+    cert_result = verify_certificate_document(
+        file_bytes=file_bytes,
+        mime_type=mime_for_ai,
+        claimed_skill=clean_skill,
+        extracted_text=extracted_text
+    )
+
+    is_verified = cert_result.get("status") == "verified" and cert_result.get("is_certificate") and cert_result.get("skill_relevant")
+
+    # Query existing verification record scoped by resume_id
     query = db.query(SkillVerification).filter(
         SkillVerification.user_id == current_user.id,
-        SkillVerification.skill_name.ilike(skill_name)
+        SkillVerification.skill_name.ilike(clean_skill)
     )
     if resume_id is not None:
         query = query.filter(SkillVerification.resume_id == resume_id)
@@ -487,37 +467,97 @@ async def verify_skill_by_certificate(
 
     record = query.first()
 
-    if not record:
-        record = SkillVerification(
-            user_id=current_user.id,
-            resume_id=resume_id,
-            skill_name=skill_name,
-            status="verified_certificate",
-            certificate_file_name=file.filename,
-            certificate_file_path=file_path,
-        )
-        db.add(record)
-    else:
-        record.status = "verified_certificate"
-        record.certificate_file_name = file.filename
-        record.certificate_file_path = file_path
-        if resume_id is not None:
-            record.resume_id = resume_id
+    if is_verified:
+        # Save certificate record as officially verified
+        if not record:
+            record = SkillVerification(
+                user_id=current_user.id,
+                resume_id=resume_id,
+                skill_name=clean_skill,
+                status="verified_certificate",
+                certificate_file_name=file.filename,
+                certificate_file_path=file_path,
+                certificate_title=cert_result.get("certificate_title"),
+                issuer=cert_result.get("issuer"),
+                detected_skill=cert_result.get("matched_skill"),
+                confidence=cert_result.get("confidence"),
+                verification_reason=cert_result.get("reason"),
+            )
+            db.add(record)
+        else:
+            record.status = "verified_certificate"
+            record.certificate_file_name = file.filename
+            record.certificate_file_path = file_path
+            record.certificate_title = cert_result.get("certificate_title")
+            record.issuer = cert_result.get("issuer")
+            record.detected_skill = cert_result.get("matched_skill")
+            record.confidence = cert_result.get("confidence")
+            record.verification_reason = cert_result.get("reason")
+            if resume_id is not None:
+                record.resume_id = resume_id
 
-    db.commit()
-    db.refresh(record)
+        db.commit()
+        db.refresh(record)
 
-    return {
-        "message": "Certificate uploaded successfully!",
-        "status": "verified_certificate",
-        "skill_name": skill_name,
-        "record": {
-            "id": record.id,
-            "skill_name": record.skill_name,
-            "status": record.status,
-            "certificate_file_name": record.certificate_file_name
+        return {
+            "success": True,
+            "status": "VERIFIED_CERTIFICATE",
+            "verification_status": "VERIFIED_CERTIFICATE",
+            "skill_name": clean_skill,
+            "matched_skill": cert_result.get("matched_skill") or clean_skill,
+            "certificate_title": cert_result.get("certificate_title") or f"{clean_skill} Certification",
+            "issuer": cert_result.get("issuer") or "Verified Academy",
+            "confidence": cert_result.get("confidence", 0.95),
+            "reason": cert_result.get("reason", "Certificate content verified successfully."),
+            "verification_method": "AI Certificate Analysis",
+            "record": {
+                "id": record.id,
+                "skill_name": record.skill_name,
+                "status": record.status,
+                "certificate_file_name": record.certificate_file_name,
+                "certificate_title": record.certificate_title,
+                "issuer": record.issuer,
+                "detected_skill": record.detected_skill,
+                "confidence": record.confidence,
+                "verification_reason": record.verification_reason
+            }
         }
-    }
+    else:
+        # Clean up file on rejection
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
+        # Update or record rejection in database
+        if record:
+            record.status = "certificate_rejected"
+            record.detected_skill = cert_result.get("matched_skill")
+            record.certificate_title = cert_result.get("certificate_title")
+            record.issuer = cert_result.get("issuer")
+            record.confidence = cert_result.get("confidence")
+            record.verification_reason = cert_result.get("reason")
+            db.commit()
+
+        error_type = "WRONG_SKILL" if cert_result.get("is_certificate") else "INVALID_CERTIFICATE"
+        
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "success": False,
+                "error_type": error_type,
+                "status": "CERTIFICATE_REJECTED",
+                "verification_status": "CERTIFICATE_REJECTED",
+                "claimed_skill": clean_skill,
+                "detected_skill": cert_result.get("matched_skill"),
+                "certificate_title": cert_result.get("certificate_title"),
+                "issuer": cert_result.get("issuer"),
+                "confidence": cert_result.get("confidence"),
+                "is_certificate": cert_result.get("is_certificate"),
+                "reason": cert_result.get("reason") or f"This certificate does not appear to verify the selected skill: {clean_skill}."
+            }
+        )
 
 
 @router.post("/generate-test")

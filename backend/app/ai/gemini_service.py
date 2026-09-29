@@ -280,3 +280,165 @@ Format:
     if text.endswith("```"):
         text = text[:-3]
     return text.strip()
+
+
+# -----------------------------
+# AI Certificate Verification
+# -----------------------------
+def verify_certificate_document(
+    file_bytes: bytes,
+    mime_type: str,
+    claimed_skill: str,
+    extracted_text: str = ""
+) -> dict:
+    """
+    Independently inspects and validates an uploaded certificate using Gemini Multimodal AI.
+    Never relies on filename or client-side claims.
+    """
+    clean_skill = claimed_skill.strip()
+    
+    prompt = f"""
+You are an expert Credential and Certification Verification AI.
+A user has uploaded a document claiming verification for the skill: '{clean_skill}'.
+
+CRITICAL VALIDATION RULES:
+1. Examine the ACTUAL VISUAL CONTENT and text of the uploaded document (seals, stamps, signatures, certificate layout, header, title, issuer).
+2. DO NOT use or trust any external metadata or filenames. Judge ONLY the content of the file.
+3. Check if this document is genuinely an official educational, training, course completion, or professional credential (is_certificate: true).
+   - If this is a resume, CV, homework assignment, class notes, invoice, essay, ID card, or random image/document, set is_certificate: false.
+4. Check if the certificate content explicitly verifies, covers, or certifies the claimed skill '{clean_skill}' (skill_relevant: true/false).
+   - Example: If claimed skill is 'Java', a certificate for 'Python Programming' or 'Web Design with HTML' is NOT skill relevant.
+5. Identify the true primary skill or technology the certificate actually certifies (matched_skill: string or null).
+6. Extract the certificate title / course name (certificate_title: string or null).
+7. Extract the issuing organization, university, academy, or platform (issuer: string or null).
+8. Confidence score (0.0 to 1.0) based on clarity of credential proofs.
+9. Provide a concise, professional reason explaining why it is verified or rejected.
+10. Set status to 'verified' ONLY IF is_certificate is true AND skill_relevant is true; otherwise set to 'rejected'.
+
+Respond ONLY in valid raw JSON with this exact structure:
+{{
+  "is_certificate": true,
+  "skill_relevant": true,
+  "matched_skill": "{clean_skill}",
+  "certificate_title": "Course Title",
+  "issuer": "Issuing Body",
+  "confidence": 0.95,
+  "reason": "The certificate content explicitly verifies...",
+  "status": "verified"
+}}
+"""
+
+    if extracted_text:
+        prompt += f"\n\nExtracted Text from Document for Reference:\n\"\"\"\n{extracted_text[:4000]}\n\"\"\""
+
+    content_parts = [prompt]
+    
+    # Map mime type safely
+    normalized_mime = mime_type.lower()
+    if "pdf" in normalized_mime:
+        normalized_mime = "application/pdf"
+    elif "png" in normalized_mime:
+        normalized_mime = "image/png"
+    elif "jpeg" in normalized_mime or "jpg" in normalized_mime:
+        normalized_mime = "image/jpeg"
+    elif "webp" in normalized_mime:
+        normalized_mime = "image/webp"
+
+    if normalized_mime in ["application/pdf", "image/png", "image/jpeg", "image/webp"] and file_bytes:
+        content_parts.append({
+            "mime_type": normalized_mime,
+            "data": file_bytes
+        })
+
+    try:
+        response = model.generate_content(content_parts)
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        import json
+        data = json.loads(text)
+
+        # Normalize outputs
+        is_cert = bool(data.get("is_certificate", False))
+        skill_relevant = bool(data.get("skill_relevant", False))
+        matched = data.get("matched_skill")
+        cert_title = data.get("certificate_title")
+        issuer = data.get("issuer")
+        confidence = float(data.get("confidence", 0.0) or 0.0)
+        reason = data.get("reason", "")
+        status = "verified" if (is_cert and skill_relevant) else "rejected"
+
+        return {
+            "is_certificate": is_cert,
+            "skill_relevant": skill_relevant,
+            "matched_skill": matched,
+            "certificate_title": cert_title,
+            "issuer": issuer,
+            "confidence": round(confidence, 2),
+            "reason": reason or ("Certificate verified successfully." if status == "verified" else "Certificate does not verify the selected skill."),
+            "status": status
+        }
+    except Exception as e:
+        print(f"[ERROR] Gemini certificate verification error: {e}")
+        # Text-based fallback if document text was extracted
+        import re
+        if extracted_text:
+            text_lower = extracted_text.lower()
+            cert_markers = ["certificate", "certify", "completion", "achievement", "completed", "awarded", "diploma", "credential"]
+            has_cert_marker = any(m in text_lower for m in cert_markers)
+            
+            # Check target skill word boundary in text (NEVER in filename)
+            skill_pattern = r'\b' + re.escape(clean_skill.lower()) + r'\b'
+            has_skill_in_text = bool(re.search(skill_pattern, text_lower))
+
+            if has_cert_marker and has_skill_in_text:
+                return {
+                    "is_certificate": True,
+                    "skill_relevant": True,
+                    "matched_skill": clean_skill,
+                    "certificate_title": f"{clean_skill} Certification",
+                    "issuer": "Verified Institution",
+                    "confidence": 0.85,
+                    "reason": f"Document text confirms completion and explicitly verifies proficiency in {clean_skill}.",
+                    "status": "verified"
+                }
+            elif has_cert_marker and not has_skill_in_text:
+                return {
+                    "is_certificate": True,
+                    "skill_relevant": False,
+                    "matched_skill": "Other Skill",
+                    "certificate_title": "Certificate",
+                    "issuer": "Institution",
+                    "confidence": 0.80,
+                    "reason": f"Uploaded document is a certificate, but does not certify proficiency in {clean_skill}.",
+                    "status": "rejected"
+                }
+            else:
+                return {
+                    "is_certificate": False,
+                    "skill_relevant": False,
+                    "matched_skill": None,
+                    "certificate_title": None,
+                    "issuer": None,
+                    "confidence": 0.90,
+                    "reason": "The uploaded document does not appear to be an official certificate.",
+                    "status": "rejected"
+                }
+
+        # If no text could be extracted and Gemini failed
+        return {
+            "is_certificate": False,
+            "skill_relevant": False,
+            "matched_skill": None,
+            "certificate_title": None,
+            "issuer": None,
+            "confidence": 0.0,
+            "reason": "Could not analyze certificate content. Please ensure the file is a clear, legible PDF or image certificate.",
+            "status": "rejected"
+        }

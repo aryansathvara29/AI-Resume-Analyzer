@@ -16,6 +16,26 @@ interface Resource {
   estimated_time: string;
 }
 
+interface CertSuccessData {
+  skill_name: string;
+  matched_skill?: string;
+  certificate_title?: string;
+  issuer?: string;
+  confidence?: number;
+  verification_method?: string;
+  reason?: string;
+}
+
+interface CertRejectionData {
+  error_type?: string;
+  claimed_skill?: string;
+  detected_skill?: string;
+  certificate_title?: string;
+  issuer?: string;
+  confidence?: number;
+  reason?: string;
+}
+
 interface Props {
   skillName: string;
   resumeId?: number;
@@ -37,7 +57,8 @@ export const SkillVerificationModal: React.FC<Props> = ({
   const [certFile, setCertFile] = useState<File | null>(null);
   const [certUploading, setCertUploading] = useState(false);
   const [certError, setCertError] = useState("");
-  const [certSuccess, setCertSuccess] = useState(false);
+  const [certSuccessData, setCertSuccessData] = useState<CertSuccessData | null>(null);
+  const [certRejectionData, setCertRejectionData] = useState<CertRejectionData | null>(null);
 
   // AI Test States (Strictly 5 questions per skill, 3 correct to pass)
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -76,6 +97,7 @@ export const SkillVerificationModal: React.FC<Props> = ({
         return;
       }
       setCertError("");
+      setCertRejectionData(null);
       setCertFile(file);
     }
   };
@@ -88,6 +110,9 @@ export const SkillVerificationModal: React.FC<Props> = ({
     try {
       setCertUploading(true);
       setCertError("");
+      setCertRejectionData(null);
+      setCertSuccessData(null);
+
       const formData = new FormData();
       formData.append("skill_name", skillName);
       if (resumeId) {
@@ -95,23 +120,20 @@ export const SkillVerificationModal: React.FC<Props> = ({
       }
       formData.append("file", certFile, certFile.name || "certificate.pdf");
 
-      await api.post("/skills/verify/certificate", formData);
-
-      setCertSuccess(true);
-      setTimeout(() => {
-        onVerificationComplete();
-        onClose();
-      }, 1000);
+      const res = await api.post("/skills/verify/certificate", formData);
+      setCertSuccessData(res.data);
+      onVerificationComplete();
     } catch (err: any) {
       console.error("Certificate upload error:", err);
-      let msg = err.response?.data?.detail;
-      if (Array.isArray(msg)) {
-        msg = msg.map((m: any) => m.msg || m).join(", ");
-      }
-      if (err.message === "Network Error" || !err.response) {
+      const detail = err.response?.data?.detail;
+      if (detail && typeof detail === "object") {
+        setCertRejectionData(detail);
+      } else if (Array.isArray(detail)) {
+        setCertError(detail.map((m: any) => m.msg || m).join(", "));
+      } else if (err.message === "Network Error" || !err.response) {
         setCertError("Backend server is waking up (Render cold start). Please try again in 5 seconds.");
       } else {
-        setCertError(msg || err.message || "Failed to upload certificate.");
+        setCertError(typeof detail === "string" ? detail : (err.message || "Failed to upload certificate."));
       }
     } finally {
       setCertUploading(false);
@@ -209,7 +231,7 @@ export const SkillVerificationModal: React.FC<Props> = ({
                 Skill Verification
               </span>
               <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                3/5 to Pass
+                AI Validation Enabled
               </span>
             </div>
             <h2 className="text-xl font-black text-white mt-1.5 flex items-center gap-2">
@@ -241,7 +263,12 @@ export const SkillVerificationModal: React.FC<Props> = ({
               {/* Option 1: Upload Certificate */}
               <button
                 type="button"
-                onClick={() => setStep("certificate")}
+                onClick={() => {
+                  setCertError("");
+                  setCertSuccessData(null);
+                  setCertRejectionData(null);
+                  setStep("certificate");
+                }}
                 className="bg-slate-950/80 hover:bg-blue-950/40 border border-slate-800 hover:border-blue-500/50 p-5 rounded-2xl text-left transition-all group space-y-3 cursor-pointer"
               >
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
@@ -250,7 +277,7 @@ export const SkillVerificationModal: React.FC<Props> = ({
                 <div>
                   <h3 className="text-sm font-extrabold text-white group-hover:text-blue-300">Upload Certificate</h3>
                   <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                    Upload official PDF or image certificate for instant verification.
+                    Upload official PDF or image certificate for AI content analysis.
                   </p>
                 </div>
               </button>
@@ -275,22 +302,161 @@ export const SkillVerificationModal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* STEP 2: UPLOAD CERTIFICATE */}
+        {/* STEP 2: UPLOAD & VERIFY CERTIFICATE */}
         {step === "certificate" && (
           <div className="space-y-4">
-            {certSuccess ? (
-              <div className="py-8 text-center space-y-3 animate-fade-in">
+            {/* 1. ANALYZING / LOADING STATE */}
+            {certUploading ? (
+              <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="w-14 h-14 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin shadow-lg shadow-blue-500/20" />
+                <div className="space-y-1">
+                  <h3 className="text-base font-extrabold text-white">Analyzing certificate...</h3>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    Gemini AI is examining document authenticity, course title, issuer, and relevance to <span className="text-blue-400 font-bold">{skillName}</span>.
+                  </p>
+                </div>
+              </div>
+            ) : certSuccessData ? (
+              /* 2. SUCCESSFUL VALIDATION (GREEN) */
+              <div className="py-4 text-center space-y-4 animate-fade-in">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center text-3xl text-emerald-400 shadow-lg shadow-emerald-500/20">
                   ✅
                 </div>
-                <h3 className="text-lg font-extrabold text-white">Certificate Verified Successfully!</h3>
-                <p className="text-xs text-emerald-300">
-                  Proficiency in <strong className="text-white capitalize">{skillName}</strong> is now verified in your profile.
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider px-3.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                    Certificate Verified ✓
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-2">Proficiency Officially Verified!</h3>
+                </div>
+
+                <div className="bg-slate-950/70 border border-emerald-500/30 rounded-2xl p-4 text-left space-y-2.5 max-w-md mx-auto text-xs">
+                  <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                    <span className="text-slate-400">Skill:</span>
+                    <span className="text-white font-bold capitalize">{certSuccessData.skill_name || skillName}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                    <span className="text-slate-400">Certificate:</span>
+                    <span className="text-white font-bold">{certSuccessData.certificate_title || `${skillName} Certification`}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                    <span className="text-slate-400">Issuer:</span>
+                    <span className="text-white font-bold">{certSuccessData.issuer || "Verified Institution"}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                    <span className="text-slate-400">Confidence:</span>
+                    <span className="text-emerald-400 font-mono font-bold">{Math.round((certSuccessData.confidence || 0.95) * 100)}%</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-slate-400">Verification method:</span>
+                    <span className="text-blue-400 font-semibold">{certSuccessData.verification_method || "AI Certificate Analysis"}</span>
+                  </div>
+                </div>
+
+                {certSuccessData.reason && (
+                  <p className="text-xs text-emerald-300/90 max-w-md mx-auto bg-emerald-950/40 border border-emerald-500/30 p-3 rounded-xl leading-relaxed">
+                    {certSuccessData.reason}
+                  </p>
+                )}
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all cursor-pointer shadow-lg shadow-emerald-600/30"
+                  >
+                    Done & Close
+                  </button>
+                </div>
+              </div>
+            ) : certRejectionData ? (
+              /* 3. REJECTION STATE (WRONG SKILL OR RANDOM DOCUMENT) */
+              <div className="py-2 text-center space-y-4 animate-fade-in">
+                <div className="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-500/40 mx-auto flex items-center justify-center text-3xl text-rose-400 shadow-lg shadow-rose-500/20">
+                  ❌
+                </div>
+
+                {certRejectionData.error_type === "WRONG_SKILL" ? (
+                  /* Case A: Real certificate but wrong skill */
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider px-3.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40">
+                      Certificate Not Accepted
+                    </span>
+                    <h3 className="text-base font-black text-white mt-2">
+                      This certificate does not appear to verify the selected skill: <span className="text-rose-400 capitalize">{skillName}</span>.
+                    </h3>
+                  </div>
+                ) : (
+                  /* Case B: Random document (not a certificate) */
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider px-3.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40">
+                      Invalid Certificate
+                    </span>
+                    <h3 className="text-base font-black text-white mt-2">
+                      The uploaded document does not appear to be a valid certificate.
+                    </h3>
+                  </div>
+                )}
+
+                <div className="bg-slate-950/70 border border-rose-500/30 rounded-2xl p-4 text-left space-y-2 max-w-md mx-auto text-xs">
+                  {certRejectionData.detected_skill && (
+                    <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Detected skill:</span>
+                      <span className="text-amber-400 font-bold capitalize">{certRejectionData.detected_skill}</span>
+                    </div>
+                  )}
+                  {certRejectionData.certificate_title && (
+                    <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Certificate title:</span>
+                      <span className="text-white font-semibold">{certRejectionData.certificate_title}</span>
+                    </div>
+                  )}
+                  {certRejectionData.issuer && (
+                    <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                      <span className="text-slate-400">Issuer:</span>
+                      <span className="text-white font-semibold">{certRejectionData.issuer}</span>
+                    </div>
+                  )}
+                  <p className="text-slate-300 text-xs pt-1 leading-relaxed">
+                    {certRejectionData.reason || (
+                      certRejectionData.error_type === "WRONG_SKILL"
+                        ? `The uploaded certificate is for ${certRejectionData.detected_skill || "another technology"}, not ${skillName}.`
+                        : `Please upload a certificate related to ${skillName}.`
+                    )}
+                  </p>
+                </div>
+
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  {certRejectionData.error_type === "WRONG_SKILL"
+                    ? `Please upload a valid ${skillName} certificate or take the AI Skill Verification Test.`
+                    : `Please upload a certificate related to ${skillName} or take the AI Skill Verification Test.`
+                  }
                 </p>
+
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCertRejectionData(null);
+                      setCertFile(null);
+                      setCertError("");
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-bold text-slate-200 hover:text-white transition-all cursor-pointer"
+                  >
+                    📁 {certRejectionData.error_type === "WRONG_SKILL" ? "Upload Another Certificate" : "Try Another File"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartAITest}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-xs font-bold text-white transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+                  >
+                    🤖 Take AI Test
+                  </button>
+                </div>
               </div>
             ) : (
+              /* 4. DEFAULT UPLOAD PICKER */
               <>
-                <div className="bg-slate-950/60 border border-dashed border-slate-800 rounded-2xl p-6 text-center space-y-3">
+                <div className="bg-slate-950/60 border border-dashed border-slate-800 hover:border-blue-500/50 rounded-2xl p-6 text-center space-y-3 transition-colors">
                   <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 mx-auto flex items-center justify-center text-2xl text-blue-400">
                     📁
                   </div>
@@ -315,7 +481,7 @@ export const SkillVerificationModal: React.FC<Props> = ({
                 )}
 
                 {certError && (
-                  <p className="text-xs font-semibold text-rose-400 flex items-center gap-1">
+                  <p className="text-xs font-semibold text-rose-400 flex items-center gap-1.5 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
                     <span>⚠️</span> {certError}
                   </p>
                 )}
@@ -334,14 +500,7 @@ export const SkillVerificationModal: React.FC<Props> = ({
                     disabled={certUploading || !certFile}
                     className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-xs font-bold text-white transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    {certUploading ? (
-                      <>
-                        <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                        Uploading & Verifying...
-                      </>
-                    ) : (
-                      "Upload & Verify Certificate"
-                    )}
+                    Upload & Verify with AI
                   </button>
                 </div>
               </>
@@ -494,7 +653,7 @@ export const SkillVerificationModal: React.FC<Props> = ({
                     {testResult.score} / {testResult.total} Correct ({testResult.percentage}%)
                   </h3>
                   <p className="text-xs font-semibold text-rose-300 max-w-md mx-auto leading-relaxed">
-                    You scored {testResult.score} out of {testResult.total}. A minimum of 3 correct answers is required to verify this skill. We recommend improving your knowledge using the resources below.
+                    You scored {testResult.score} out of {testResult.total}. A minimum of 3 correct answers is required to verify this skill. Please review the suggested resources below and try again.
                   </p>
                 </div>
 
