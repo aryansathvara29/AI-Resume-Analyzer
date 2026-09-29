@@ -186,7 +186,6 @@ def get_all_resumes_admin(
     ).all()
     
     verifications_by_resume = {}
-    verifications_by_user = {}
     for v in verifications:
         v_data = {
             "id": v.id,
@@ -196,16 +195,13 @@ def get_all_resumes_admin(
         }
         if v.resume_id:
             verifications_by_resume.setdefault(v.resume_id, []).append(v_data)
-        verifications_by_user.setdefault(v.user_id, []).append(v_data)
 
     data = []
     for resume, user in results:
         detected = detect_skills(resume.extracted_text or "")
         
-        # Pick resume-scoped verifications if present, otherwise user-level
-        verified = verifications_by_resume.get(resume.id)
-        if verified is None:
-            verified = verifications_by_user.get(user.id, [])
+        # Pick strictly resume-scoped verifications
+        verified = verifications_by_resume.get(resume.id, [])
 
         data.append({
             "id": resume.id,
@@ -326,12 +322,22 @@ def delete_resume(
             detail="Access denied",
         )
 
-    # Remove physical file if it exists
+    # Remove physical resume file if it exists
     if resume.file_path and os.path.exists(resume.file_path):
         try:
             os.remove(resume.file_path)
         except Exception as e:
             print(f"Error removing physical resume file: {e}")
+
+    # Remove associated certificate files if any exist for this resume
+    from app.models.skill_verification import SkillVerification
+    verifications = db.query(SkillVerification).filter(SkillVerification.resume_id == resume_id).all()
+    for v in verifications:
+        if v.certificate_file_path and os.path.exists(v.certificate_file_path):
+            try:
+                os.remove(v.certificate_file_path)
+            except Exception as e:
+                print(f"Error removing certificate file: {e}")
 
     db.delete(resume)
     db.commit()

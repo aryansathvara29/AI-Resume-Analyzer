@@ -65,6 +65,25 @@ for col_def in skill_verif_columns:
     except Exception as e:
         print(f"[INFO] SkillVerifications migration notice ({col_def}): {e}")
 
+try:
+    with engine.begin() as conn:
+        conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'fk_skill_verifications_resume'
+                ) THEN
+                    ALTER TABLE skill_verifications
+                    ADD CONSTRAINT fk_skill_verifications_resume
+                    FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE CASCADE;
+                END IF;
+            END $$;
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_skill_verifications_resume_id ON skill_verifications (resume_id);"))
+except Exception as e:
+    print(f"[INFO] SkillVerifications FK migration notice: {e}")
+
+
 resume_columns = [
     "ats_analysis JSON",
 ]

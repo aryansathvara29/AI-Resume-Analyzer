@@ -7,6 +7,7 @@ from sqlalchemy import (
     Text,
     JSON,
 )
+from sqlalchemy.orm import relationship
 from datetime import datetime
 
 from app.database.session import Base
@@ -30,3 +31,10 @@ class Resume(Base):
     ats_analysis = Column(JSON, nullable=True)
 
     uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    skill_verifications = relationship(
+        "SkillVerification",
+        backref="resume",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

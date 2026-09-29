@@ -439,8 +439,11 @@ function Dashboard() {
   const fetchSkillVerifications = async (targetResumeId?: number) => {
     try {
       const rId = targetResumeId !== undefined ? targetResumeId : selectedResume?.id;
-      const url = rId ? `/skills/verifications?resume_id=${rId}` : "/skills/verifications";
-      const res = await api.get(url);
+      if (!rId) {
+        setSkillVerifications({});
+        return;
+      }
+      const res = await api.get(`/skills/verifications?resume_id=${rId}`);
       const map: { [skill: string]: any } = {};
       if (Array.isArray(res.data)) {
         res.data.forEach((v: any) => {
@@ -450,6 +453,7 @@ function Dashboard() {
       setSkillVerifications(map);
     } catch (err) {
       console.error("Error fetching skill verifications:", err);
+      setSkillVerifications({});
     }
   };
 
@@ -490,7 +494,6 @@ function Dashboard() {
         setStats(statsRes.data);
         setHistory(historyRes.data.history || []);
         setProfileStats(profileStatsRes.data);
-        fetchSkillVerifications();
       } catch (statsErr) {
         console.error("Error fetching stats/history:", statsErr);
       }
@@ -531,6 +534,8 @@ function Dashboard() {
 
   // Handle Logout
   const handleLogout = () => {
+    setSkillVerifications({});
+    setSelectedResume(null);
     localStorage.removeItem("token");
     navigate("/login");
   };
@@ -612,9 +617,10 @@ function Dashboard() {
 
   useEffect(() => {
     if (selectedResume?.id) {
+      setSkillVerifications({});
       fetchSkillVerifications(selectedResume.id);
     } else {
-      fetchSkillVerifications();
+      setSkillVerifications({});
     }
   }, [selectedResume?.id]);
 
@@ -767,8 +773,10 @@ function Dashboard() {
     try {
       setUploading(true);
       setErrorMsg("");
+      setSkillVerifications({});
       const res = await api.get(`/resumes/${resumeId}`);
       setSelectedResume(res.data);
+      fetchSkillVerifications(resumeId);
       setJobMatchResult("");
       if (switchTab) setActiveTab("upload"); // switch to analysis view
     } catch (err: any) {
@@ -776,6 +784,7 @@ function Dashboard() {
       const foundInHistory = history.find((item: any) => item.id === resumeId) || recruiterResumes.find((c: any) => c.id === resumeId);
       if (foundInHistory) {
         setSelectedResume(foundInHistory);
+        fetchSkillVerifications(resumeId);
         setJobMatchResult("");
         if (switchTab) setActiveTab("upload");
       } else {
@@ -796,6 +805,7 @@ function Dashboard() {
       setRecruiterResumes((prev) => prev.filter((item) => item.id !== resumeId));
       if (selectedResume?.id === resumeId) {
         setSelectedResume(null);
+        setSkillVerifications({});
       }
       setFile(null);
       setUploadError("");
@@ -1044,6 +1054,8 @@ function Dashboard() {
       });
 
       setSelectedResume(response.data);
+      setSkillVerifications({});
+      fetchSkillVerifications(response.data.id);
       setUploadSuccess(true);
       setFile(null);
       setJobMatchResult("");
@@ -4979,14 +4991,9 @@ function Dashboard() {
                       </p>
                     </div>
 
-                    {currentSkillsAndSuggestions.skills.length > 0 || Object.keys(skillVerifications).length > 0 ? (
+                    {currentSkillsAndSuggestions.skills.length > 0 ? (
                       <div className="space-y-3">
-                        {Array.from(
-                          new Set([
-                            ...currentSkillsAndSuggestions.skills,
-                            ...Object.values(skillVerifications).map((v: any) => v.skill_name),
-                          ])
-                        ).map((skill) => {
+                        {currentSkillsAndSuggestions.skills.map((skill) => {
                           const sVer = skillVerifications[skill.toLowerCase()];
                           const isCert = sVer?.status === "verified_certificate" || sVer?.status === "VERIFIED_CERTIFICATE";
                           const isTest = sVer?.status === "verified_ai_test" || sVer?.status === "VERIFIED_AI_TEST";

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models.user import User
+from app.models.resume import Resume
 from app.models.skill_verification import SkillVerification
 from app.dependencies.auth import get_current_user
 from app.ai.gemini_service import (
@@ -372,10 +373,21 @@ def get_user_skill_verifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    query = db.query(SkillVerification).filter(SkillVerification.user_id == current_user.id)
-    if resume_id is not None:
-        query = query.filter(SkillVerification.resume_id == resume_id)
-    records = query.all()
+    target_resume_id = resume_id
+    if target_resume_id is not None:
+        resume = db.query(Resume).filter(Resume.id == target_resume_id, Resume.user_id == current_user.id).first()
+        if not resume:
+            return []
+    else:
+        active_resume = db.query(Resume).filter(Resume.user_id == current_user.id).order_by(Resume.uploaded_at.desc()).first()
+        if not active_resume:
+            return []
+        target_resume_id = active_resume.id
+
+    records = db.query(SkillVerification).filter(
+        SkillVerification.user_id == current_user.id,
+        SkillVerification.resume_id == target_resume_id
+    ).all()
     return records
 
 
@@ -395,6 +407,24 @@ async def verify_skill_by_certificate(
     clean_filename = original_filename.strip()
     ext = os.path.splitext(clean_filename)[1].lower()
     content_type = (file.content_type or "").lower()
+
+    # Validate resume ownership or derive active resume
+    effective_resume_id = resume_id
+    if effective_resume_id is not None:
+        resume = db.query(Resume).filter(Resume.id == effective_resume_id, Resume.user_id == current_user.id).first()
+        if not resume:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid resume ID or resume does not belong to the authenticated user."
+            )
+    else:
+        active_resume = db.query(Resume).filter(Resume.user_id == current_user.id).order_by(Resume.uploaded_at.desc()).first()
+        if not active_resume:
+            raise HTTPException(
+                status_code=400,
+                detail="No resume found. Please upload a resume before verifying skills."
+            )
+        effective_resume_id = active_resume.id
 
     is_valid_ext = ext in ALLOWED_EXTENSIONS
     is_valid_mime = any(m in content_type for m in ["pdf", "image", "png", "jpeg", "jpg"])
@@ -455,24 +485,20 @@ async def verify_skill_by_certificate(
 
     is_verified = cert_result.get("status") == "verified" and cert_result.get("is_certificate") and cert_result.get("skill_relevant")
 
-    # Query existing verification record scoped by resume_id
+    # Query existing verification record strictly scoped by user_id and effective_resume_id
     query = db.query(SkillVerification).filter(
         SkillVerification.user_id == current_user.id,
+        SkillVerification.resume_id == effective_resume_id,
         SkillVerification.skill_name.ilike(clean_skill)
     )
-    if resume_id is not None:
-        query = query.filter(SkillVerification.resume_id == resume_id)
-    else:
-        query = query.filter(SkillVerification.resume_id.is_(None))
-
     record = query.first()
 
     if is_verified:
-        # Save certificate record as officially verified
+        # Save certificate record as officially verified for this specific resume
         if not record:
             record = SkillVerification(
                 user_id=current_user.id,
-                resume_id=resume_id,
+                resume_id=effective_resume_id,
                 skill_name=clean_skill,
                 status="verified_certificate",
                 certificate_file_name=file.filename,
@@ -486,6 +512,7 @@ async def verify_skill_by_certificate(
             db.add(record)
         else:
             record.status = "verified_certificate"
+            record.resume_id = effective_resume_id
             record.certificate_file_name = file.filename
             record.certificate_file_path = file_path
             record.certificate_title = cert_result.get("certificate_title")
@@ -493,8 +520,6 @@ async def verify_skill_by_certificate(
             record.detected_skill = cert_result.get("matched_skill")
             record.confidence = cert_result.get("confidence")
             record.verification_reason = cert_result.get("reason")
-            if resume_id is not None:
-                record.resume_id = resume_id
 
         db.commit()
         db.refresh(record)
@@ -512,6 +537,7 @@ async def verify_skill_by_certificate(
             "verification_method": "AI Certificate Analysis",
             "record": {
                 "id": record.id,
+                "resume_id": record.resume_id,
                 "skill_name": record.skill_name,
                 "status": record.status,
                 "certificate_file_name": record.certificate_file_name,
@@ -530,15 +556,29 @@ async def verify_skill_by_certificate(
             except Exception:
                 pass
 
-        # Update or record rejection in database
+        # Update or record rejection in database for this specific resume
         if record:
             record.status = "certificate_rejected"
+            record.resume_id = effective_resume_id
             record.detected_skill = cert_result.get("matched_skill")
             record.certificate_title = cert_result.get("certificate_title")
             record.issuer = cert_result.get("issuer")
             record.confidence = cert_result.get("confidence")
             record.verification_reason = cert_result.get("reason")
-            db.commit()
+        else:
+            record = SkillVerification(
+                user_id=current_user.id,
+                resume_id=effective_resume_id,
+                skill_name=clean_skill,
+                status="certificate_rejected",
+                detected_skill=cert_result.get("matched_skill"),
+                certificate_title=cert_result.get("certificate_title"),
+                issuer=cert_result.get("issuer"),
+                confidence=cert_result.get("confidence"),
+                verification_reason=cert_result.get("reason"),
+            )
+            db.add(record)
+        db.commit()
 
         error_type = "WRONG_SKILL" if cert_result.get("is_certificate") else "INVALID_CERTIFICATE"
         
@@ -620,6 +660,24 @@ def submit_test(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Ensure resume_id is valid and belongs to the authenticated user
+    effective_resume_id = body.resume_id
+    if effective_resume_id is not None:
+        resume = db.query(Resume).filter(Resume.id == effective_resume_id, Resume.user_id == current_user.id).first()
+        if not resume:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid resume ID or resume does not belong to the authenticated user."
+            )
+    else:
+        active_resume = db.query(Resume).filter(Resume.user_id == current_user.id).order_by(Resume.uploaded_at.desc()).first()
+        if not active_resume:
+            raise HTTPException(
+                status_code=400,
+                detail="No resume found for user. Please upload a resume before taking skill tests."
+            )
+        effective_resume_id = active_resume.id
+
     # Passing rule: At least 3 correct out of 5 questions (>= 60%)
     total_q = max(body.total, 1)
     passed = (body.score >= 3) if total_q == 5 else ((body.score / total_q) >= 0.60)
@@ -649,20 +707,19 @@ def submit_test(
                 }
             ]
 
-    # If multi-skills passed, verify each of them
+    # If multi-skills passed, verify each of them strictly for this resume
     if body.skills_passed and len(body.skills_passed) > 0:
         for s in body.skills_passed:
             q = db.query(SkillVerification).filter(
                 SkillVerification.user_id == current_user.id,
+                SkillVerification.resume_id == effective_resume_id,
                 SkillVerification.skill_name.ilike(s.strip())
             )
-            if body.resume_id is not None:
-                q = q.filter(SkillVerification.resume_id == body.resume_id)
             rec = q.first()
             if not rec:
                 rec = SkillVerification(
                     user_id=current_user.id,
-                    resume_id=body.resume_id,
+                    resume_id=effective_resume_id,
                     skill_name=s.strip(),
                     status="verified_ai_test" if passed else "learning_recommended",
                     score=body.score,
@@ -671,30 +728,25 @@ def submit_test(
                 db.add(rec)
             else:
                 rec.status = "verified_ai_test" if passed else "learning_recommended"
+                rec.resume_id = effective_resume_id
                 rec.score = body.score
-                if body.resume_id is not None:
-                    rec.resume_id = body.resume_id
                 if not passed:
                     rec.learning_resources = resources
         db.commit()
 
-    # Upsert main verification record scoped by resume_id
+    # Upsert main verification record strictly scoped by user_id and effective_resume_id
     query = db.query(SkillVerification).filter(
         SkillVerification.user_id == current_user.id,
-        SkillVerification.skill_name.ilike(body.skill_name)
+        SkillVerification.resume_id == effective_resume_id,
+        SkillVerification.skill_name.ilike(body.skill_name.strip())
     )
-    if body.resume_id is not None:
-        query = query.filter(SkillVerification.resume_id == body.resume_id)
-    else:
-        query = query.filter(SkillVerification.resume_id.is_(None))
-
     record = query.first()
 
     if not record:
         record = SkillVerification(
             user_id=current_user.id,
-            resume_id=body.resume_id,
-            skill_name=body.skill_name,
+            resume_id=effective_resume_id,
+            skill_name=body.skill_name.strip(),
             status=status_str,
             score=body.score,
             learning_resources=resources
@@ -702,9 +754,8 @@ def submit_test(
         db.add(record)
     else:
         record.status = status_str
+        record.resume_id = effective_resume_id
         record.score = body.score
-        if body.resume_id is not None:
-            record.resume_id = body.resume_id
         if not passed:
             record.learning_resources = resources
 
