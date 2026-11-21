@@ -64,6 +64,22 @@ def register_user(
 
     role_value = body.role if body.role in ["user", "recruiter", "admin"] else "user"
 
+    if len(body.password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 6 characters long.",
+        )
+    if not body.password[0].isupper():
+        raise HTTPException(
+            status_code=400,
+            detail="First character of password must be capital (A-Z).",
+        )
+    if not any(char.isdigit() for char in body.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least one number (0-9).",
+        )
+
     new_user = User(
         full_name=clean_name,
         email=email,
@@ -168,6 +184,22 @@ def change_password(
             detail="Current password is incorrect.",
         )
     
+    if len(body.new_password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be at least 6 characters long.",
+        )
+    if not body.new_password[0].isupper():
+        raise HTTPException(
+            status_code=400,
+            detail="First character of new password must be capital (A-Z).",
+        )
+    if not any(char.isdigit() for char in body.new_password):
+        raise HTTPException(
+            status_code=400,
+            detail="New password must contain at least one number (0-9).",
+        )
+
     current_user.hashed_password = hash_password(body.new_password)
     db.commit()
     return {"message": "Password updated successfully!"}

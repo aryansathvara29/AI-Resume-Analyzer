@@ -24,6 +24,17 @@ class UserCreate(BaseModel):
             raise ValueError("Name can only contain letters and spaces.")
         return name_str
 
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("Password must be at least 6 characters long.")
+        if not v[0].isupper():
+            raise ValueError("First character of password must be capital (A-Z).")
+        if not any(char.isdigit() for char in v):
+            raise ValueError("Password must contain at least one number (0-9).")
+        return v
+
     @field_validator("email")
     @classmethod
     def validate_gmail(cls, v: str) -> str:
@@ -122,6 +133,17 @@ class PasswordChangeRequest(BaseModel):
     current_password: str
     new_password: str
 
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("New password must be at least 6 characters long.")
+        if not v[0].isupper():
+            raise ValueError("First character of new password must be capital (A-Z).")
+        if not any(char.isdigit() for char in v):
+            raise ValueError("New password must contain at least one number (0-9).")
+        return v
+
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -182,4 +204,4 @@ class VerifyOTPLoginRequest(BaseModel):
         if not GMAIL_REGEX.match(email_str):
             raise ValueError("Only valid @gmail.com email addresses are allowed.")
         return email_str
-
+

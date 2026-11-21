@@ -733,6 +733,14 @@ function Dashboard() {
       setPasswordMsg({ type: "error", text: "New password must be at least 6 characters long." });
       return;
     }
+    if (!/^[A-Z]/.test(passwordForm.new_password)) {
+      setPasswordMsg({ type: "error", text: "First character of new password must be capital (A-Z)." });
+      return;
+    }
+    if (!/\d/.test(passwordForm.new_password)) {
+      setPasswordMsg({ type: "error", text: "New password must contain at least one number (0-9)." });
+      return;
+    }
     try {
       setPasswordSaving(true);
       setPasswordMsg(null);
