@@ -178,8 +178,8 @@ function Login() {
               type="button"
               onClick={() => setRole("user")}
               className={`flex-1 flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${role === "user"
-                  ? "bg-slate-900 border border-blue-500/40 text-blue-400 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent"
+                ? "bg-slate-900 border border-blue-500/40 text-blue-400 shadow-sm"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent"
                 }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 ${role === "user" ? "text-blue-400" : "text-slate-500"}`}>
@@ -193,8 +193,8 @@ function Login() {
               type="button"
               onClick={() => setRole("recruiter")}
               className={`flex-1 flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${role === "recruiter"
-                  ? "bg-slate-900 border border-blue-500/40 text-blue-400 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent"
+                ? "bg-slate-900 border border-blue-500/40 text-blue-400 shadow-sm"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent"
                 }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 ${role === "recruiter" ? "text-blue-400" : "text-slate-500"}`}>
@@ -225,7 +225,25 @@ function Login() {
         )}
 
         {/* Auth Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+          {/* Hidden inputs to capture aggressive browser autofill */}
+          <input
+            type="text"
+            name="fake_username_remember"
+            style={{ display: "none" }}
+            aria-hidden="true"
+            tabIndex={-1}
+            autoComplete="off"
+          />
+          <input
+            type="password"
+            name="fake_password_remember"
+            style={{ display: "none" }}
+            aria-hidden="true"
+            tabIndex={-1}
+            autoComplete="new-password"
+          />
+
           {/* Full Name (if registering) */}
           {!isLogin && (
             <div>
@@ -241,6 +259,8 @@ function Login() {
                 </div>
                 <input
                   type="text"
+                  name="full_name_field"
+                  autoComplete="off"
                   value={fullName}
                   onChange={(e) => {
                     const rawVal = e.target.value;
@@ -276,6 +296,9 @@ function Login() {
               </div>
               <input
                 type="email"
+                name="user_email_field"
+                autoComplete="new-password"
+                spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
@@ -299,6 +322,8 @@ function Login() {
               </div>
               <input
                 type={showPassword ? "text" : "password"}
+                name="user_password_field"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="******"
@@ -323,7 +348,7 @@ function Login() {
                 )}
               </button>
             </div>
-            
+
             {/* Live Password Requirement Checklist (Signup only) */}
             {!isLogin && (
               <div className="mt-2.5 p-3 rounded-xl bg-slate-950/70 border border-slate-800/90 text-xs space-y-1.5 transition-all">
@@ -367,6 +392,8 @@ function Login() {
                 </div>
                 <input
                   type={showConfirmPassword ? "text" : "password"}
+                  name="confirm_password_field"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repeat your password"
