@@ -307,8 +307,41 @@ function Dashboard() {
     });
   };
 
+  // Actual shortlisted candidates currently present in the talent pool
+  const shortlistedCandidates = useMemo(() => {
+    return recruiterResumes.filter((c) => Boolean(shortlistedMap[c.id]));
+  }, [recruiterResumes, shortlistedMap]);
+
+  // Automatically prune orphan IDs (e.g. deleted resumes) from shortlistedMap & localStorage
+  useEffect(() => {
+    if (recruiterResumes && recruiterResumes.length > 0) {
+      const validIds = new Set(recruiterResumes.map((c: any) => c.id));
+      setShortlistedMap((prev) => {
+        let hasOrphan = false;
+        const cleaned: { [id: number]: { status: string; date: string } } = {};
+        for (const [key, val] of Object.entries(prev)) {
+          const numKey = Number(key);
+          if (validIds.has(numKey)) {
+            cleaned[numKey] = val;
+          } else {
+            hasOrphan = true;
+          }
+        }
+        if (hasOrphan) {
+          try {
+            localStorage.setItem("recruiter_shortlist", JSON.stringify(cleaned));
+          } catch (e) {
+            console.error("Failed to prune orphan shortlisted IDs", e);
+          }
+          return cleaned;
+        }
+        return prev;
+      });
+    }
+  }, [recruiterResumes]);
+
   const exportShortlistReport = () => {
-    const list = recruiterResumes.filter((c) => shortlistedMap[c.id]);
+    const list = shortlistedCandidates;
     if (list.length === 0) {
       alert("No candidates in your shortlist yet.");
       return;
@@ -1341,9 +1374,9 @@ function Dashboard() {
                     </svg>
                     Shortlisted
                   </div>
-                  {Object.keys(shortlistedMap).length > 0 && (
+                  {shortlistedCandidates.length > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      {Object.keys(shortlistedMap).length}
+                      {shortlistedCandidates.length}
                     </span>
                   )}
                 </button>
@@ -2851,7 +2884,7 @@ function Dashboard() {
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
                   </svg>
-                  Shortlisted ({Object.keys(shortlistedMap).length})
+                  Shortlisted ({shortlistedCandidates.length})
                 </button>
 
                 <button
@@ -3439,7 +3472,7 @@ function Dashboard() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={exportShortlistReport}
-                      disabled={Object.keys(shortlistedMap).length === 0}
+                      disabled={shortlistedCandidates.length === 0}
                       className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/10 disabled:opacity-50 transition-all cursor-pointer"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -3450,7 +3483,7 @@ function Dashboard() {
                   </div>
                 </div>
 
-                {Object.keys(shortlistedMap).length === 0 ? (
+                {shortlistedCandidates.length === 0 ? (
                   <div className="py-20 flex flex-col items-center justify-center text-slate-500 space-y-3 rounded-2xl bg-slate-900/40 border border-slate-800">
                     <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-400">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
@@ -3481,11 +3514,9 @@ function Dashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/80 text-slate-300 text-xs font-medium">
-                          {recruiterResumes
-                            .filter((c) => shortlistedMap[c.id])
-                            .map((candidate) => {
-                              const itemState = shortlistedMap[candidate.id];
-                              const verifiedList = candidate.verified_skills || [];
+                          {shortlistedCandidates.map((candidate) => {
+                            const itemState = shortlistedMap[candidate.id] || { status: "Shortlisted", date: new Date().toISOString() };
+                            const verifiedList = candidate.verified_skills || [];
 
                               return (
                                 <tr key={candidate.id} className="hover:bg-slate-800/40 transition-colors">
@@ -3594,7 +3625,7 @@ function Dashboard() {
                   <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Shortlisted Pipeline</span>
                     <div className="text-3xl font-black text-violet-400 mt-1">
-                      {Object.keys(shortlistedMap).length}
+                      {shortlistedCandidates.length}
                     </div>
                     <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Candidates under active review</span>
                   </div>
