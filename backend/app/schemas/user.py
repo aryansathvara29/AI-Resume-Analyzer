@@ -1,7 +1,9 @@
 import re
+from typing import Optional
 from pydantic import BaseModel, EmailStr, field_validator
 
 GMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@gmail\.com$", re.IGNORECASE)
+NAME_REGEX = re.compile(r"^[a-zA-Z\s]+$")
 
 
 class UserCreate(BaseModel):
@@ -9,6 +11,18 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: str = "user"
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str) -> str:
+        name_str = v.strip()
+        if not name_str:
+            raise ValueError("Full name cannot be empty.")
+        if any(char.isdigit() for char in name_str):
+            raise ValueError("Name cannot contain numbers. Only letters are allowed.")
+        if not NAME_REGEX.match(name_str):
+            raise ValueError("Name can only contain letters and spaces.")
+        return name_str
 
     @field_validator("email")
     @classmethod
@@ -88,6 +102,20 @@ class UserProfileUpdate(BaseModel):
     portfolio_url: Optional[str] = None
     leetcode_url: Optional[str] = None
     hackerrank_url: Optional[str] = None
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        name_str = v.strip()
+        if not name_str:
+            raise ValueError("Full name cannot be empty.")
+        if any(char.isdigit() for char in name_str):
+            raise ValueError("Name cannot contain numbers. Only letters are allowed.")
+        if not NAME_REGEX.match(name_str):
+            raise ValueError("Name can only contain letters and spaces.")
+        return name_str
 
 
 class PasswordChangeRequest(BaseModel):

@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -35,6 +36,23 @@ def register_user(
     body: UserCreate,
     db: Session = Depends(get_db),
 ):
+    clean_name = body.full_name.strip()
+    if not clean_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Full name cannot be empty.",
+        )
+    if any(char.isdigit() for char in clean_name):
+        raise HTTPException(
+            status_code=400,
+            detail="Name cannot contain numbers. Only letters are allowed.",
+        )
+    if not re.match(r"^[a-zA-Z\s]+$", clean_name):
+        raise HTTPException(
+            status_code=400,
+            detail="Name can only contain letters and spaces.",
+        )
+
     email = body.email.strip().lower()
 
     existing_user = db.query(User).filter(User.email == email).first()
@@ -47,7 +65,7 @@ def register_user(
     role_value = body.role if body.role in ["user", "recruiter", "admin"] else "user"
 
     new_user = User(
-        full_name=body.full_name,
+        full_name=clean_name,
         email=email,
         hashed_password=hash_password(body.password),
         role=role_value,
@@ -118,6 +136,16 @@ def update_logged_in_user(
     current_user: User = Depends(get_current_user),
 ):
     update_data = body.dict(exclude_unset=True)
+    if "full_name" in update_data and update_data["full_name"] is not None:
+        clean_name = update_data["full_name"].strip()
+        if not clean_name:
+            raise HTTPException(status_code=400, detail="Full name cannot be empty.")
+        if any(char.isdigit() for char in clean_name):
+            raise HTTPException(status_code=400, detail="Name cannot contain numbers. Only letters are allowed.")
+        if not re.match(r"^[a-zA-Z\s]+$", clean_name):
+            raise HTTPException(status_code=400, detail="Name can only contain letters and spaces.")
+        update_data["full_name"] = clean_name
+
     for field, value in update_data.items():
         setattr(current_user, field, value)
     

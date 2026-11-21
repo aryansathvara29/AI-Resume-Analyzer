@@ -510,6 +510,11 @@ function Dashboard() {
   // Profile Form Handlers
   const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    if (name === "full_name") {
+      const lettersOnly = value.replace(/[^a-zA-Z\s]/g, "");
+      setProfileForm((prev: any) => ({ ...prev, [name]: lettersOnly }));
+      return;
+    }
     setProfileForm((prev: any) => ({ ...prev, [name]: value }));
   };
 
@@ -687,6 +692,17 @@ function Dashboard() {
     if (socialErr) {
       setErrorMsg(socialErr);
       return;
+    }
+
+    if (profileForm.full_name) {
+      if (/\d/.test(profileForm.full_name)) {
+        setErrorMsg("Full Name cannot contain numbers. Only letters are allowed.");
+        return;
+      }
+      if (!/^[a-zA-Z\s]+$/.test(profileForm.full_name.trim())) {
+        setErrorMsg("Full Name can only contain letters and spaces.");
+        return;
+      }
     }
 
     try {
