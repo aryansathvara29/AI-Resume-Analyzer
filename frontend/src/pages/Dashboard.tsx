@@ -540,6 +540,29 @@ function Dashboard() {
     navigate("/login");
   };
 
+  // Handle Delete Account
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState<boolean>(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState<boolean>(false);
+
+  const handleDeleteAccount = async () => {
+    try {
+      setDeleteAccountLoading(true);
+      await api.delete("/users/me");
+      setShowDeleteAccountModal(false);
+      localStorage.clear();
+      navigate("/login");
+    } catch (err: any) {
+      console.error("Delete account error:", err);
+      let detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        detail = detail.map((d: any) => d.msg).join(", ");
+      }
+      alert(detail || "Failed to delete account. Please try again.");
+    } finally {
+      setDeleteAccountLoading(false);
+    }
+  };
+
   // Profile Form Handlers
   const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -4809,71 +4832,105 @@ function Dashboard() {
 
                 {/* ⚙️ 7. Security Panel */}
                 {profileSubTab === "security" && (
-                  <form onSubmit={handleChangePassword} className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 animate-fade-in">
-                    <div className="border-b border-slate-800/80 pb-4">
-                      <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
-                        <span className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-sm">⚙️</span>
-                        Account Security & Password
-                      </h3>
-                      <p className="text-xs text-slate-400 mt-1">Update your login security credentials</p>
+                  <div className="space-y-6 animate-fade-in">
+                    <form onSubmit={handleChangePassword} className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30">
+                      <div className="border-b border-slate-800/80 pb-4">
+                        <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
+                          <span className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-sm">⚙️</span>
+                          Account Security & Password
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">Update your login security credentials</p>
+                      </div>
+
+                      {passwordMsg && (
+                        <div className={`rounded-2xl border p-4 text-xs font-bold shadow-lg ${
+                          passwordMsg.type === "success"
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                            : "border-red-500/30 bg-red-500/10 text-red-400"
+                        }`}>
+                          {passwordMsg.text}
+                        </div>
+                      )}
+
+                      <div className="space-y-4 max-w-md">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-2">Current Password</label>
+                          <input
+                            type="password"
+                            value={passwordForm.current_password}
+                            onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+                            placeholder="••••••••"
+                            required
+                            className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-2">New Password</label>
+                          <input
+                            type="password"
+                            value={passwordForm.new_password}
+                            onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+                            placeholder="••••••••"
+                            required
+                            className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-2">Confirm New Password</label>
+                          <input
+                            type="password"
+                            value={passwordForm.confirm_password}
+                            onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
+                            placeholder="••••••••"
+                            required
+                            className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={passwordSaving}
+                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white transition-all shadow-lg shadow-blue-500/25 flex items-center gap-2 cursor-pointer"
+                      >
+                        {passwordSaving ? "Updating Password..." : "Change Password"}
+                      </button>
+                    </form>
+
+                    {/* ⚠️ Danger Zone: Delete Account */}
+                    <div className="rounded-3xl bg-red-950/20 border border-red-500/30 p-6 md:p-8 space-y-4 backdrop-blur-xl shadow-xl shadow-red-950/10">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-red-500/20 pb-4">
+                        <div>
+                          <h3 className="text-base font-extrabold text-red-400 flex items-center gap-2.5">
+                            <span className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-sm">⚠️</span>
+                            Danger Zone
+                          </h3>
+                          <p className="text-xs text-slate-400 mt-1">Irreversible and destructive actions for your account</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-bold text-white">Delete Account</h4>
+                          <p className="text-xs text-slate-400 max-w-lg leading-relaxed">
+                            Once you delete your account, there is no going back. All your uploaded resumes, ATS scores, skill test verifications, and profile data will be permanently wiped.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteAccountModal(true)}
+                          className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                          Delete Account
+                        </button>
+                      </div>
                     </div>
-
-                    {passwordMsg && (
-                      <div className={`rounded-2xl border p-4 text-xs font-bold shadow-lg ${
-                        passwordMsg.type === "success"
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                          : "border-red-500/30 bg-red-500/10 text-red-400"
-                      }`}>
-                        {passwordMsg.text}
-                      </div>
-                    )}
-
-                    <div className="space-y-4 max-w-md">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Current Password</label>
-                        <input
-                          type="password"
-                          value={passwordForm.current_password}
-                          onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
-                          placeholder="••••••••"
-                          required
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">New Password</label>
-                        <input
-                          type="password"
-                          value={passwordForm.new_password}
-                          onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
-                          placeholder="••••••••"
-                          required
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Confirm New Password</label>
-                        <input
-                          type="password"
-                          value={passwordForm.confirm_password}
-                          onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
-                          placeholder="••••••••"
-                          required
-                          className="w-full bg-slate-950/80 border border-slate-800/90 rounded-xl px-4 py-3 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={passwordSaving}
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white transition-all shadow-lg shadow-blue-500/25 flex items-center gap-2"
-                    >
-                      {passwordSaving ? "Updating Password..." : "Change Password"}
-                    </button>
-                  </form>
+                  </div>
                 )}
               </div>
             </div>
@@ -4928,6 +4985,61 @@ function Dashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
                 </svg>
                 Yes, Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ACCOUNT CONFIRMATION MODAL */}
+      {showDeleteAccountModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-red-500/30 rounded-2xl max-w-sm w-full p-6 space-y-5 shadow-2xl animate-scale-up">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-white">Delete Account?</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  This action is permanent and cannot be undone. All your resumes, ATS scores, verified skills, and profile information will be deleted immediately.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={deleteAccountLoading}
+                onClick={() => setShowDeleteAccountModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 font-semibold text-xs transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteAccountLoading}
+                onClick={handleDeleteAccount}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-red-600/20 cursor-pointer disabled:opacity-50"
+              >
+                {deleteAccountLoading ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                    <span>Yes, Delete</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -84,6 +84,7 @@ function Login() {
         const response = await api.post("/users/login", {
           email: cleanEmail,
           password,
+          role,
         });
 
         localStorage.setItem("token", response.data.access_token);

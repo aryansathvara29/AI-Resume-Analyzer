@@ -148,6 +148,7 @@ class PasswordChangeRequest(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    role: Optional[str] = None
 
     @field_validator("email")
     @classmethod
@@ -196,6 +197,7 @@ class VerifyOTPRegisterRequest(BaseModel):
 class VerifyOTPLoginRequest(BaseModel):
     email: EmailStr
     otp_code: str
+    role: Optional[str] = None
 
     @field_validator("email")
     @classmethod

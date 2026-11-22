@@ -119,6 +119,21 @@ def login_user(
             detail="Invalid email or password.",
         )
 
+    if body.role:
+        selected_role = body.role.strip().lower()
+        user_role = (user.role or "user").strip().lower()
+        if selected_role in ["user", "recruiter"] and user_role != "admin":
+            if selected_role == "user" and user_role == "recruiter":
+                raise HTTPException(
+                    status_code=400,
+                    detail="This account is registered as a Recruiter. Please select the Recruiter tab to sign in.",
+                )
+            elif selected_role == "recruiter" and user_role == "user":
+                raise HTTPException(
+                    status_code=400,
+                    detail="This account is registered as a Job Seeker. Please select the Job Seeker tab to sign in.",
+                )
+
     access_token = create_access_token(
         data={
             "sub": user.email,
@@ -203,6 +218,39 @@ def change_password(
     current_user.hashed_password = hash_password(body.new_password)
     db.commit()
     return {"message": "Password updated successfully!"}
+
+
+@router.delete(
+    "/me",
+)
+def delete_current_user_account(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.models.skill_verification import SkillVerification
+    from app.models.user import OTPRecord
+
+    # Delete skill verifications associated with the user
+    db.query(SkillVerification).filter(SkillVerification.user_id == current_user.id).delete()
+
+    # Delete resumes and remove physical files
+    user_resumes = db.query(Resume).filter(Resume.user_id == current_user.id).all()
+    for resume in user_resumes:
+        if resume.file_path and os.path.exists(resume.file_path):
+            try:
+                os.remove(resume.file_path)
+            except Exception:
+                pass
+        db.delete(resume)
+
+    # Delete OTP records associated with user's email
+    db.query(OTPRecord).filter(OTPRecord.email == current_user.email).delete()
+
+    # Delete the user record
+    db.delete(current_user)
+    db.commit()
+
+    return {"message": "Account and all associated data deleted successfully."}
 
 
 @router.get(
