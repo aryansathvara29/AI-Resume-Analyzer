@@ -269,6 +269,23 @@ function Dashboard() {
   });
   const [dossierCandidate, setDossierCandidate] = useState<any | null>(null);
 
+  // Contact Candidate Modal states
+  const [contactCandidate, setContactCandidate] = useState<any | null>(null);
+  const [emailSubject, setEmailSubject] = useState<string>("");
+  const [emailBody, setEmailBody] = useState<string>("");
+  const [copiedEmailStatus, setCopiedEmailStatus] = useState<boolean>(false);
+
+  const openContactCandidateModal = (candidate: any) => {
+    setContactCandidate(candidate);
+    const roleName = searchRole || candidate.candidate_role || "Full Stack Developer";
+    const candidateName = candidate.candidate_name || "Candidate";
+    setEmailSubject(`Interview Invitation: ${roleName}`);
+    setEmailBody(
+      `Dear ${candidateName},\n\nWe are impressed by your qualifications and verified technical skills for the ${roleName} role and would like to schedule a conversation with you.\n\nPlease let us know your availability for a quick 20-30 minute introductory call this week.\n\nBest regards,\nRecruitment Team`
+    );
+    setCopiedEmailStatus(false);
+  };
+
   const toggleShortlist = (candidateId: number) => {
     setShortlistedMap((prev) => {
       const next = { ...prev };
@@ -3348,15 +3365,17 @@ function Dashboard() {
                             </button>
 
                             {candidate.candidate_email && (
-                              <a
-                                href={`mailto:${candidate.candidate_email}?subject=Job Opportunity: ${encodeURIComponent(searchRole)}&body=Hi ${encodeURIComponent(candidate.candidate_name || 'Candidate')},%0D%0A%0D%0AWe reviewed your profile and resume on our AI Talent Hub for the ${encodeURIComponent(searchRole)} position and would love to connect with you.`}
+                              <button
+                                type="button"
+                                onClick={() => openContactCandidateModal(candidate)}
                                 className="py-2 px-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                                title="Send Email Inquiry"
+                                title="Contact Candidate (Gmail / Outlook)"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
                                 </svg>
-                              </a>
+                                Email
+                              </button>
                             )}
                           </div>
                         </div>
@@ -3463,9 +3482,20 @@ function Dashboard() {
                                     Inspect
                                   </button>
 
+                                  {candidate.candidate_email && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openContactCandidateModal(candidate)}
+                                      className="px-2.5 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all inline-flex items-center gap-1 cursor-pointer"
+                                      title="Contact Candidate (Gmail / Outlook)"
+                                    >
+                                      ✉ Email
+                                    </button>
+                                  )}
+
                                   <button
                                     onClick={() => handleExportReport(candidate.id, candidate.file_name)}
-                                    className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all"
+                                    className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all cursor-pointer"
                                   >
                                     PDF
                                   </button>
@@ -3846,15 +3876,16 @@ function Dashboard() {
 
                     <div className="flex items-center gap-2">
                       {dossierCandidate.candidate_email && (
-                        <a
-                          href={`mailto:${dossierCandidate.candidate_email}?subject=Interview Invitation: ${encodeURIComponent(searchRole)}&body=Dear ${encodeURIComponent(dossierCandidate.candidate_name || 'Candidate')},%0D%0A%0D%0AWe are impressed by your qualifications for the ${encodeURIComponent(searchRole)} role and would like to schedule a conversation with you.`}
-                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
+                        <button
+                          type="button"
+                          onClick={() => openContactCandidateModal(dossierCandidate)}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
                           </svg>
                           Contact Candidate
-                        </a>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -5040,6 +5071,120 @@ function Dashboard() {
                     <span>Yes, Delete</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONTACT / INVITE CANDIDATE MODAL */}
+      {contactCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl animate-scale-up text-left">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Contact & Invite Candidate</h3>
+                  <p className="text-xs text-slate-400">Send an interview invitation or inquiry directly</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setContactCandidate(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Candidate Summary */}
+            <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-white">{contactCandidate.candidate_name || "Applicant"}</p>
+                <p className="text-[11px] text-blue-400 font-medium">{contactCandidate.candidate_email}</p>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] font-bold">
+                {searchRole || "Candidate"}
+              </span>
+            </div>
+
+            {/* Editable Subject */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Email Subject</label>
+              <input
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-medium focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* Editable Body */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Message Content</label>
+              <textarea
+                rows={5}
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-medium focus:outline-none focus:border-blue-500 leading-relaxed resize-none"
+              />
+            </div>
+
+            {/* Notice on delivery / Spam */}
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-amber-300 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-amber-200">
+                <span>💡</span> 100% Guaranteed Inbox Delivery:
+              </div>
+              <p className="text-slate-300 leading-normal">
+                Agar aapne desktop Outlook se mail bheja tha, toh receiver ke Gmail ke <strong>Spam / Junk folder</strong> me check karein (desktop client ke emails aksar Spam me chale jate hain). Direct 100% Primary Inbox delivery ke liye <strong>"Send via Gmail (Web)"</strong> button use karein.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contactCandidate.candidate_email)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+                  window.open(url, "_blank");
+                }}
+                className="w-full sm:flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 cursor-pointer"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                </svg>
+                Send via Gmail (Web)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `mailto:${contactCandidate.candidate_email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+                  window.location.href = url;
+                }}
+                className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Open Outlook or Default App"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
+                </svg>
+                Outlook
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(`To: ${contactCandidate.candidate_email}\nSubject: ${emailSubject}\n\n${emailBody}`);
+                  setCopiedEmailStatus(true);
+                  setTimeout(() => setCopiedEmailStatus(false), 2500);
+                }}
+                className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {copiedEmailStatus ? "✓ Copied!" : "📋 Copy"}
               </button>
             </div>
           </div>
