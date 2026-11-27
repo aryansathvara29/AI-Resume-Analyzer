@@ -260,29 +260,44 @@ def download_resume_file(
             detail="Access denied",
         )
 
-    # 1. Return physical file if present
-    if resume.file_path and os.path.exists(resume.file_path):
+    # 1. First attempt: Return physical original file if found on disk
+    from app.utils.resume_generator import resolve_resume_path, generate_resume_pdf
+
+    resolved_path = resolve_resume_path(resume.file_path)
+    if resolved_path and os.path.exists(resolved_path):
         media_type = "application/pdf"
         if resume.file_name.lower().endswith((".docx", ".doc")):
             media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         return FileResponse(
-            path=resume.file_path,
+            path=resolved_path,
             filename=resume.file_name,
             media_type=media_type,
         )
 
-    # 2. Fallback: return extracted clean resume text if physical file was cleaned
-    if resume.extracted_text:
-        return PlainTextResponse(
-            content=resume.extracted_text,
-            headers={
-                "Content-Disposition": f"attachment; filename={os.path.splitext(resume.file_name)[0]}_resume.txt"
-            }
-        )
+    # 2. Fallback: Generate real, valid, beautiful PDF from stored resume text
+    owner = db.query(User).filter(User.id == resume.user_id).first()
+    candidate_name = owner.full_name if owner else "Candidate"
+    candidate_email = owner.email if owner else ""
+    user_meta = {
+        "phone": owner.phone if owner else None,
+        "city": owner.city if owner else None,
+        "state": owner.state if owner else None,
+        "college": owner.college if owner else None,
+        "current_role": owner.current_role if owner else None,
+        "preferred_role": owner.preferred_role if owner else None,
+    }
 
-    raise HTTPException(
-        status_code=404,
-        detail="Original resume file not found on server",
+    raw_text = resume.extracted_text or f"Resume content for {candidate_name}"
+    pdf_bytes = generate_resume_pdf(candidate_name, candidate_email, raw_text, user_meta)
+    clean_name = resume.file_name if resume.file_name.lower().endswith(".pdf") else f"{os.path.splitext(resume.file_name)[0]}.pdf"
+
+    from fastapi.responses import Response
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{clean_name}"'
+        }
     )
 
 
@@ -428,4 +443,4 @@ def delete_resume(
     db.delete(resume)
     db.commit()
 
-    return {"message": "Resume deleted successfully", "id": resume_id}
+    return {"message": "Resume deleted successfully", "id": resume_id}

@@ -39,3 +39,4 @@ websockets==16.0
 pdfplumber
 python-docx
 google-generativeai
+reportlab

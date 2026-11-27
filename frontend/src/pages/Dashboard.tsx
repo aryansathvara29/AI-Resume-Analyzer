@@ -1006,7 +1006,8 @@ function Dashboard() {
         responseType: "blob",
       });
 
-      const isDocx = fileName.toLowerCase().endsWith(".docx");
+      const contentType = String(res.headers?.["content-type"] || "application/pdf");
+      const isDocx = fileName?.toLowerCase().endsWith(".docx") || contentType.includes("word");
       const blob = new Blob([res.data], {
         type: isDocx
           ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -1015,14 +1016,20 @@ function Dashboard() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = fileName || "Candidate_Resume.pdf";
+
+      let downloadName = fileName || "Candidate_Resume.pdf";
+      if (!downloadName.toLowerCase().endsWith(".pdf") && !downloadName.toLowerCase().endsWith(".docx")) {
+        downloadName += isDocx ? ".docx" : ".pdf";
+      }
+
+      link.download = downloadName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("Resume download error:", err);
-      alert("Failed to download resume file. The original file may not be available on server.");
+      alert("Failed to download resume file. Please try again.");
     }
   };
 
