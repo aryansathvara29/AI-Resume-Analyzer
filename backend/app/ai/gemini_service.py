@@ -5,9 +5,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+_api_key = os.getenv("GEMINI_API_KEY")
+if _api_key:
+    genai.configure(api_key=_api_key)
 
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-2.5-flash") if _api_key else None
 
 
 # -----------------------------
@@ -153,7 +155,135 @@ Resume:
 # -----------------------------
 # Resume vs Job Description Match
 # -----------------------------
+def _deterministic_match_resume_job(resume_text: str, job_description: str) -> str:
+    """
+    Deterministic ATS & skill-alignment fallback when Gemini API is unavailable.
+    Supports both detailed Job Descriptions and concise role queries (e.g. 'aiml', 'full stack').
+    """
+    import re
+    from app.services.ats_service import SKILL_DEFINITIONS, calculate_ats_score
+
+    base_ats = calculate_ats_score(resume_text)
+    resume_lower = (resume_text or "").lower()
+    jd_lower = (job_description or "").lower()
+    resume_skills = {s.lower() for s in base_ats.get("skills", [])}
+
+    # 1. Extract explicit skills mentioned in the Job Description
+    jd_skills: list[str] = []
+    for item in SKILL_DEFINITIONS:
+        if any(re.search(pat, jd_lower) for pat in item["patterns"]):
+            jd_skills.append(item["canonical"])
+
+    # 2. Expand concise role keywords / domain phrases if few explicit skills were pasted
+    domain_expansions = [
+        (["aiml", "ai/ml", "ai ml", "artificial intelligence", "machine learning", "ml engineer"],
+         ["python", "machine learning", "deep learning", "numpy", "pandas", "matplotlib", "scikit-learn", "tensorflow", "pytorch", "nlp", "sql"]),
+        (["full stack", "fullstack", "mern", "web developer"],
+         ["react", "node.js", "javascript", "typescript", "html", "css", "sql", "mongodb", "git", "rest api"]),
+        (["frontend", "front-end", "front end", "ui developer"],
+         ["html", "css", "javascript", "typescript", "react", "tailwind", "bootstrap", "git"]),
+        (["backend", "back-end", "back end", "api developer"],
+         ["python", "fastapi", "django", "node.js", "sql", "postgresql", "mysql", "rest api", "docker", "git"]),
+        (["data scientist", "data science", "data analyst", "analytics"],
+         ["python", "sql", "numpy", "pandas", "matplotlib", "scikit-learn", "machine learning", "mysql"]),
+        (["devops", "cloud", "sre", "site reliability"],
+         ["docker", "kubernetes", "aws", "azure", "linux", "git"]),
+        (["java developer", "java", "spring"],
+         ["java", "spring", "spring boot", "mysql", "sql", "rest api", "git"]),
+    ]
+
+    for triggers, expanded_skills in domain_expansions:
+        if any(re.search(r"\b" + re.escape(t) + r"\b", jd_lower) for t in triggers):
+            for sk in expanded_skills:
+                if sk not in jd_skills:
+                    jd_skills.append(sk)
+
+    # Match target skills against resume skills and full resume text
+    matching_skills: list[str] = []
+    missing_skills: list[str] = []
+    skill_patterns = {item["canonical"].lower(): item["patterns"] for item in SKILL_DEFINITIONS}
+
+    for sk in jd_skills:
+        sk_l = sk.lower()
+        pats = skill_patterns.get(sk_l, [r"\b" + re.escape(sk_l) + r"\b"])
+        if sk_l in resume_skills or any(re.search(p, resume_lower) for p in pats):
+            matching_skills.append(sk)
+        else:
+            missing_skills.append(sk)
+
+    # 3. Keyword overlap from non-stopword JD tokens
+    stopwords = {
+        "and", "the", "for", "with", "that", "this", "from", "will", "have", "your",
+        "are", "you", "our", "looking", "role", "job", "description", "required",
+        "skills", "experience", "years", "work", "team", "developer", "engineer",
+        "strong", "knowledge", "good", "must", "using", "ability", "build",
+    }
+    jd_words = [
+        w for w in re.findall(r"[a-zA-Z0-9\+\#\.]{2,}", jd_lower)
+        if w not in stopwords
+    ]
+    unique_jd_words = list(dict.fromkeys(jd_words))
+    matched_words = [w for w in unique_jd_words if re.search(r"\b" + re.escape(w) + r"\b", resume_lower)]
+
+    skill_ratio = (len(matching_skills) / len(jd_skills)) if jd_skills else min(1.0, len(resume_skills) / 8.0)
+    keyword_ratio = (len(matched_words) / len(unique_jd_words)) if unique_jd_words else 0.0
+    ats_base = base_ats.get("ats_score", 0) or 0
+
+    match_score = round((skill_ratio * 65) + (keyword_ratio * 15) + (ats_base * 0.20))
+    match_score = max(12, min(96, match_score))
+
+    # 4. Build Strengths, Weaknesses, Suggestions & Recommendation
+    strengths = list(base_ats.get("strengths", []))[:3]
+    if matching_skills:
+        strengths.insert(0, f"Matched {len(matching_skills)}/{len(jd_skills) or len(matching_skills)} target role skills: {', '.join(matching_skills[:8])}.")
+    if not strengths:
+        strengths.append("Resume structure parsed successfully for ATS baseline comparison.")
+
+    weaknesses = []
+    if missing_skills:
+        weaknesses.append(f"Missing {len(missing_skills)} key role skills expected for this JD: {', '.join(missing_skills[:8])}.")
+    weaknesses.extend(list(base_ats.get("weaknesses", []))[:2])
+    if not weaknesses:
+        weaknesses.append("Consider adding more quantifiable impact metrics aligned with the role.")
+
+    suggestions = []
+    if missing_skills:
+        suggestions.append(f"Add hands-on projects or experience demonstrating: {', '.join(missing_skills[:5])}.")
+    suggestions.extend(list(base_ats.get("suggestions", []))[:3])
+    if not suggestions:
+        suggestions.append("Tailor your top Professional Summary lines directly to the target job title.")
+
+    if match_score >= 75:
+        recommendation = f"Strong Match ({match_score}%): Candidate aligns well with the target role requirements and is recommended for shortlisting/interview."
+    elif match_score >= 50:
+        recommendation = f"Moderate Match ({match_score}%): Candidate has foundational overlap; addressing the missing skills listed above will significantly improve selection chances."
+    else:
+        recommendation = f"Partial Match ({match_score}%): Resume needs targeted upskilling and JD-specific keywords before applying for this role."
+
+    matching_str = ", ".join(matching_skills) if matching_skills else ("None directly matched from JD (Resume skills found: " + ", ".join(sorted(resume_skills)[:8]) + ")" if resume_skills else "None detected")
+    missing_str = ", ".join(missing_skills) if missing_skills else "No critical skill gaps detected"
+
+    return (
+        f"ATS Match Score (0-100)\n"
+        f"{match_score}%\n\n"
+        f"Matching Skills\n"
+        f"- {matching_str}\n\n"
+        f"Missing Skills\n"
+        f"- {missing_str}\n\n"
+        f"Strengths\n"
+        + "\n".join(f"- {s}" for s in strengths) + "\n\n"
+        f"Weaknesses\n"
+        + "\n".join(f"- {w}" for w in weaknesses) + "\n\n"
+        f"Resume Improvement Suggestions\n"
+        + "\n".join(f"- {sug}" for sug in suggestions) + "\n\n"
+        f"Final Recommendation\n"
+        f"{recommendation}"
+    )
+
+
 def match_resume_job(resume_text: str, job_description: str):
+    if model is None:
+        return _deterministic_match_resume_job(resume_text, job_description)
 
     prompt = f"""
 You are an ATS Resume Expert.
@@ -183,9 +313,14 @@ Resume Improvement Suggestions
 Final Recommendation
 """
 
-    response = model.generate_content(prompt)
+    try:
+        response = model.generate_content(prompt)
+        if response and getattr(response, "text", None):
+            return response.text
+    except Exception as e:
+        print(f"[WARN] Gemini match_resume_job failed ({e}); using deterministic ATS alignment fallback.")
 
-    return response.text
+    return _deterministic_match_resume_job(resume_text, job_description)
 
 
 # -----------------------------
@@ -539,4 +674,4 @@ Respond ONLY in valid raw JSON with this exact structure:
             "confidence": 0.0,
             "reason": "Could not analyze certificate content. Please ensure the file is a clear, legible PDF or image certificate.",
             "status": "rejected"
-        }
+        }

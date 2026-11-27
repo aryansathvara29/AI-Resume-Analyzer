@@ -1156,12 +1156,25 @@ function Dashboard() {
 
   // Resume vs Job Description Matching
   const runJobMatching = async () => {
-    const resumeText = selectedResume?.extracted_text || (history.length > 0 ? "Select a resume to compare" : "");
-    if (!resumeText || !jobDescription.trim()) return;
+    if (!selectedResume || !jobDescription.trim()) return;
 
     setMatchLoading(true);
     setJobMatchResult("");
     try {
+      let resumeText = selectedResume.extracted_text || "";
+      if (!resumeText && selectedResume.id) {
+        const detailRes = await api.get(`/resumes/${selectedResume.id}`);
+        if (detailRes.data) {
+          setSelectedResume(detailRes.data);
+          resumeText = detailRes.data.extracted_text || "";
+        }
+      }
+
+      if (!resumeText) {
+        setJobMatchResult("Selected resume does not have readable extracted text. Please re-upload or select another resume.");
+        return;
+      }
+
       const res = await api.post("/job/match", {
         resume_text: resumeText,
         job_description: jobDescription,
@@ -1173,7 +1186,8 @@ function Dashboard() {
       }
     } catch (err: any) {
       console.error("Job matching error:", err);
-      setJobMatchResult("Error matching job description. Ensure GEMINI_API_KEY is configured in backend.");
+      const detail = err.response?.data?.detail || err.message;
+      setJobMatchResult(`Error matching job description: ${detail || "Please try again."}`);
     } finally {
       setMatchLoading(false);
     }
@@ -5178,16 +5192,6 @@ function Dashboard() {
                 onChange={(e) => setEmailBody(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-medium focus:outline-none focus:border-blue-500 leading-relaxed resize-none"
               />
-            </div>
-
-            {/* Notice on delivery / Spam */}
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-amber-300 space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-amber-200">
-                <span>💡</span> 100% Guaranteed Inbox Delivery:
-              </div>
-              <p className="text-slate-300 leading-normal">
-                Agar aapne desktop Outlook se mail bheja tha, toh receiver ke Gmail ke <strong>Spam / Junk folder</strong> me check karein (desktop client ke emails aksar Spam me chale jate hain). Direct 100% Primary Inbox delivery ke liye <strong>"Send via Gmail (Web)"</strong> button use karein.
-              </p>
             </div>
 
             {/* Action Buttons */}
