@@ -999,6 +999,33 @@ function Dashboard() {
     }
   };
 
+  // Download candidate's original resume file (PDF / DOCX)
+  const handleDownloadResume = async (resumeId: number, fileName: string) => {
+    try {
+      const res = await api.get(`/resumes/${resumeId}/download`, {
+        responseType: "blob",
+      });
+
+      const isDocx = fileName.toLowerCase().endsWith(".docx");
+      const blob = new Blob([res.data], {
+        type: isDocx
+          ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          : "application/pdf",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName || "Candidate_Resume.pdf";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error("Resume download error:", err);
+      alert("Failed to download resume file. The original file may not be available on server.");
+    }
+  };
+
   // Handle Drag Events
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -3354,9 +3381,9 @@ function Dashboard() {
                             </button>
 
                             <button
-                              onClick={() => handleExportReport(candidate.id, candidate.file_name)}
+                              onClick={() => handleDownloadResume(candidate.id, candidate.file_name)}
                               className="py-2 px-3 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                              title="Export Evaluation Report"
+                              title="Download Candidate Resume PDF"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -3494,8 +3521,9 @@ function Dashboard() {
                                   )}
 
                                   <button
-                                    onClick={() => handleExportReport(candidate.id, candidate.file_name)}
+                                    onClick={() => handleDownloadResume(candidate.id, candidate.file_name)}
                                     className="px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all cursor-pointer"
+                                    title="Download Candidate Resume PDF"
                                   >
                                     PDF
                                   </button>
@@ -3853,10 +3881,10 @@ function Dashboard() {
                           Extracted Resume Content ({dossierCandidate.file_name})
                         </h4>
                         <button
-                          onClick={() => handleExportReport(dossierCandidate.id, dossierCandidate.file_name)}
-                          className="text-blue-400 hover:text-blue-300 underline font-bold"
+                          onClick={() => handleDownloadResume(dossierCandidate.id, dossierCandidate.file_name)}
+                          className="text-blue-400 hover:text-blue-300 underline font-bold cursor-pointer"
                         >
-                          Download Full PDF
+                          Download Resume PDF
                         </button>
                       </div>
                       <div className="p-3 rounded-xl bg-slate-900 border border-slate-800/80 max-h-56 overflow-y-auto font-mono text-[11px] text-slate-300 whitespace-pre-wrap">
@@ -3875,6 +3903,17 @@ function Dashboard() {
                     </button>
 
                     <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadResume(dossierCandidate.id, dossierCandidate.file_name)}
+                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Download Resume PDF
+                      </button>
+
                       {dossierCandidate.candidate_email && (
                         <button
                           type="button"

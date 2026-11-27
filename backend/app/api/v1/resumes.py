@@ -232,6 +232,61 @@ def get_all_resumes_admin(
 
 
 @router.get(
+    "/{resume_id}/download",
+)
+def download_resume_file(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from fastapi.responses import FileResponse, PlainTextResponse
+
+    resume = (
+        db.query(Resume)
+        .filter(Resume.id == resume_id)
+        .first()
+    )
+
+    if not resume:
+        raise HTTPException(
+            status_code=404,
+            detail="Resume not found",
+        )
+
+    # Restrict download to owner or recruiter/admin
+    if resume.user_id != current_user.id and current_user.role not in ["admin", "recruiter"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied",
+        )
+
+    # 1. Return physical file if present
+    if resume.file_path and os.path.exists(resume.file_path):
+        media_type = "application/pdf"
+        if resume.file_name.lower().endswith((".docx", ".doc")):
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        return FileResponse(
+            path=resume.file_path,
+            filename=resume.file_name,
+            media_type=media_type,
+        )
+
+    # 2. Fallback: return extracted clean resume text if physical file was cleaned
+    if resume.extracted_text:
+        return PlainTextResponse(
+            content=resume.extracted_text,
+            headers={
+                "Content-Disposition": f"attachment; filename={os.path.splitext(resume.file_name)[0]}_resume.txt"
+            }
+        )
+
+    raise HTTPException(
+        status_code=404,
+        detail="Original resume file not found on server",
+    )
+
+
+@router.get(
     "/{resume_id}/export",
 )
 def export_resume_report(
@@ -260,12 +315,51 @@ def export_resume_report(
             detail="Access denied",
         )
 
-    # Detect skills & suggestions using local checker (re-calculated or retrieved)
+    # Fetch actual owner of the resume (Job Seeker)
+    owner = db.query(User).filter(User.id == resume.user_id).first()
+    candidate_name = owner.full_name if owner else "Candidate"
+    candidate_email = owner.email if owner else "N/A"
+
+    # Detect skills using local checker
     from app.services.ats_service import calculate_ats_score
     ats_result = calculate_ats_score(resume.extracted_text or "")
-
     skills_str = ", ".join(ats_result["skills"])
-    suggestions_str = "\n".join([f"- {s}" for s in ats_result["suggestions"]])
+
+    is_recruiter = current_user.role in ["admin", "recruiter"]
+
+    if is_recruiter:
+        # Recruiter dossier export: NO improvement suggestions!
+        from app.models.skill_verification import SkillVerification
+        verifications = db.query(SkillVerification).filter(
+            SkillVerification.resume_id == resume.id,
+            SkillVerification.status.in_(["verified_certificate", "verified_ai_test"])
+        ).all()
+        verified_skills_str = ", ".join([v.skill_name for v in verifications]) if verifications else "None verified yet"
+
+        body_section = f"""[CANDIDATE TALENT PROFILE]
+Name: {candidate_name}
+Email: {candidate_email}
+Target Role: {owner.preferred_role or owner.current_role or 'Not specified'}
+Experience: {owner.experience_years or 'Fresher'}
+Location: {owner.city or 'N/A'}{f", {owner.state}" if owner and owner.state else ''}
+
+--------------------------------------------------
+[ATS MATCH & KEYWORDS]
+Compatibility Score: {resume.ats_score or 0}%
+Skills & Keywords: {skills_str if skills_str else 'No core keywords identified.'}
+Verified Skills: {verified_skills_str}"""
+    else:
+        # Job Seeker personal evaluation report
+        suggestions_str = "\n".join([f"- {s}" for s in ats_result["suggestions"]])
+        body_section = f"""[ATS ANALYSIS METRICS]
+Overall ATS Compatibility Score: {resume.ats_score or 0}%
+
+[KEYWORD TAGS FOUND]
+{skills_str if skills_str else 'No core keywords identified.'}
+
+--------------------------------------------------
+[IMPROVEMENT SUGGESTIONS]
+{suggestions_str if suggestions_str else 'No suggestions. Excellent keyword mapping!'}"""
 
     report = f"""==================================================
         AI RESUME ANALYZER EVALUATION REPORT
@@ -274,18 +368,10 @@ def export_resume_report(
 [BASIC DETAILS]
 File Name: {resume.file_name}
 Upload Date: {resume.uploaded_at.strftime('%Y-%m-%d %H:%M:%S')}
-Owner: {current_user.full_name} ({current_user.email})
+Candidate: {candidate_name} ({candidate_email})
 
 --------------------------------------------------
-[ATS ANALYSIS METRICS]
-Overall ATS Compatibility Score: {resume.ats_score or 0}%
-
-[KEYWORD TAGS FOUND]
-{skills_str if skills_str else 'No core keywords identified.'}
-
---------------------------------------------------
-[IMPROVEMENT SUGGESTIONS]
-{suggestions_str if suggestions_str else 'No suggestions. Excellent keyword mapping!'}
+{body_section}
 
 ==================================================
 Generated by AI Resume Analyzer
