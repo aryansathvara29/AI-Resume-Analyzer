@@ -1489,7 +1489,12 @@ function Dashboard() {
                 <div className="pt-2 pb-1 border-t border-slate-800/60 my-2"></div>
 
                 <button
-                  onClick={() => setActiveTab("profile")}
+                  onClick={() => {
+                    setActiveTab("profile");
+                    if (["education", "resume", "skill_verification"].includes(profileSubTab)) {
+                      setProfileSubTab("personal");
+                    }
+                  }}
                   className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                     activeTab === "profile"
                       ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
@@ -1589,7 +1594,12 @@ function Dashboard() {
                 </button>
 
                 <button
-                  onClick={() => setActiveTab("profile")}
+                  onClick={() => {
+                    setActiveTab("profile");
+                    if (["education", "resume", "skill_verification"].includes(profileSubTab)) {
+                      setProfileSubTab("personal");
+                    }
+                  }}
                   className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                     activeTab === "profile"
                       ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/10"
@@ -1625,7 +1635,12 @@ function Dashboard() {
         {/* User Card & Logout */}
         <div className="mt-8 pt-6 border-t border-slate-800">
           <div
-            onClick={() => setActiveTab("profile")}
+            onClick={() => {
+              setActiveTab("profile");
+              if (user?.role === "recruiter" && ["education", "resume", "skill_verification"].includes(profileSubTab)) {
+                setProfileSubTab("personal");
+              }
+            }}
             className={`flex items-center gap-3 mb-4 p-2.5 rounded-xl cursor-pointer transition-all border ${
               activeTab === "profile"
                 ? "bg-slate-800/80 border-blue-500/40 shadow-lg shadow-blue-500/10"
@@ -4113,17 +4128,19 @@ function Dashboard() {
                   Personal Info
                 </button>
 
-                <button
-                  onClick={() => setProfileSubTab("education")}
-                  className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
-                    profileSubTab === "education"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 font-extrabold"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-                  }`}
-                >
-                  <span className="w-6 h-6 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-xs">🎓</span>
-                  Education
-                </button>
+                {user?.role !== "recruiter" && (
+                  <button
+                    onClick={() => setProfileSubTab("education")}
+                    className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
+                      profileSubTab === "education"
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 font-extrabold"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <span className="w-6 h-6 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-xs">🎓</span>
+                    Education
+                  </button>
+                )}
 
                 <button
                   onClick={() => setProfileSubTab("professional")}
@@ -4149,29 +4166,33 @@ function Dashboard() {
                   Social Links
                 </button>
 
-                <button
-                  onClick={() => setProfileSubTab("resume")}
-                  className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
-                    profileSubTab === "resume"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 font-extrabold"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-                  }`}
-                >
-                  <span className="w-6 h-6 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-xs">📄</span>
-                  Resume Stats
-                </button>
+                {user?.role !== "recruiter" && (
+                  <>
+                    <button
+                      onClick={() => setProfileSubTab("resume")}
+                      className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
+                        profileSubTab === "resume"
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 font-extrabold"
+                          : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                      }`}
+                    >
+                      <span className="w-6 h-6 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-xs">📄</span>
+                      Resume Stats
+                    </button>
 
-                <button
-                  onClick={() => setProfileSubTab("skill_verification")}
-                  className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
-                    profileSubTab === "skill_verification"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 font-extrabold"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-                  }`}
-                >
-                  <span className="w-6 h-6 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-xs">🛡️</span>
-                  Skill Verification
-                </button>
+                    <button
+                      onClick={() => setProfileSubTab("skill_verification")}
+                      className={`w-full px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-3 ${
+                        profileSubTab === "skill_verification"
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 font-extrabold"
+                          : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                      }`}
+                    >
+                      <span className="w-6 h-6 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-xs">🛡️</span>
+                      Skill Verification
+                    </button>
+                  </>
+                )}
 
                 <button
                   onClick={() => setProfileSubTab("security")}
@@ -4494,7 +4515,7 @@ function Dashboard() {
                 )}
 
                 {/* 🎓 2. Education Panel */}
-                {profileSubTab === "education" && (
+                {profileSubTab === "education" && user?.role !== "recruiter" && (
                   <div className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 animate-fade-in">
                     <div className="border-b border-slate-800/80 pb-4">
                       <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
@@ -4783,7 +4804,7 @@ function Dashboard() {
                 )}
 
                 {/* 📄 6. Resume Analytics Panel */}
-                {profileSubTab === "resume" && (
+                {profileSubTab === "resume" && user?.role !== "recruiter" && (
                   <div className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 animate-fade-in">
                     <div className="border-b border-slate-800/80 pb-4">
                       <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
@@ -4818,7 +4839,7 @@ function Dashboard() {
                 )}
 
                 {/* 🛡️ Skill Verification Panel */}
-                {profileSubTab === "skill_verification" && (
+                {profileSubTab === "skill_verification" && user?.role !== "recruiter" && (
                   <div className="rounded-3xl bg-slate-900/70 border border-slate-800/90 p-6 md:p-8 space-y-6 backdrop-blur-xl shadow-xl shadow-black/30 animate-fade-in">
                     <div className="border-b border-slate-800/80 pb-4">
                       <h3 className="text-base font-extrabold text-white flex items-center gap-2.5">
